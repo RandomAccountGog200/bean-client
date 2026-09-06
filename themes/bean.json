@@ -1,0 +1,18 @@
+{
+  "name": "Bean",
+  "author": "Bean Client",
+  "description": "Dark roast browns, cream text, warm amber accent.",
+
+  "background": "#1E150F",
+  "panel": "#2C1F15",
+  "panelAlt": "#3A2A1C",
+  "text": "#F2E3CC",
+  "textDim": "#A18B70",
+  "accent": "#E8912F",
+
+  "cornerRadius": 8,
+
+  "pattern": "bean",
+  "patternOpacity": 0.055,
+  "backgroundImage": null
+}

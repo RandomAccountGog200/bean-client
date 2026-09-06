@@ -1,0 +1,18 @@
+{
+  "name": "Classic Dark",
+  "author": "Bean Client",
+  "description": "Neutral dark slate with a cool blue accent. No bean motif - the plain example.",
+
+  "background": "#16181C",
+  "panel": "#21252B",
+  "panelAlt": "#2C313A",
+  "text": "#E4E8EE",
+  "textDim": "#8A93A0",
+  "accent": "#5B8DEF",
+
+  "cornerRadius": 4,
+
+  "pattern": "none",
+  "patternOpacity": 0.0,
+  "backgroundImage": null
+}

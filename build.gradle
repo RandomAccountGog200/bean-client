@@ -1,0 +1,60 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.16.2'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+    mavenCentral()
+}
+
+dependencies {
+    // Minecraft 26.x ships DEOBFUSCATED - Mojang stopped publishing obfuscation
+    // maps after 1.21.11, so there is no `mappings` dependency any more, and no
+    // remapping step. Mods are therefore ordinary `implementation` dependencies
+    // (the `modImplementation` configuration does not exist in this mode).
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+def targetJava = project.java_version as int
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+
+    // themes/ at the repo root is the single source of truth for the shipped
+    // skins. They get bundled into the jar here, and ThemeManager copies them
+    // out to config/beanclient/themes/ on first run - so editing a theme in
+    // the repo changes the default, and editing it in config/ changes yours.
+    from('themes') {
+        into 'assets/beanclient/themes'
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = targetJava
+}
+
+java {
+    withSourcesJar()
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJava)
+    }
+}
+
+jar {
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}

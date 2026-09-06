@@ -1,0 +1,18 @@
+{
+  "name": "Midnight Mocha",
+  "author": "Bean Client",
+  "description": "The bean motif after dark - deep plum panels, soft violet accent, rounder corners.",
+
+  "background": "#14101A",
+  "panel": "#1F1828",
+  "panelAlt": "#2B2138",
+  "text": "#EDE4F5",
+  "textDim": "#9585A8",
+  "accent": "#B07CD6",
+
+  "cornerRadius": 12,
+
+  "pattern": "bean",
+  "patternOpacity": 0.07,
+  "backgroundImage": null
+}

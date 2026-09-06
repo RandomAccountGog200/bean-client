@@ -1,0 +1,10 @@
+{
+  "name": "Minimal Example",
+  "description": "Every field except these five is optional - the rest is derived. Copy this to start your own.",
+
+  "background": "#101010",
+  "panel": "#1C1C1C",
+  "text": "#EEEEEE",
+  "accent": "#22C55E",
+  "cornerRadius": 6
+}
