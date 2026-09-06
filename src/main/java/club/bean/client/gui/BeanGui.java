@@ -17,34 +17,34 @@ import java.util.List;
  */
 public final class BeanGui {
     // ---- fixed layout metrics --------------------------------------------
-    public static final int PAD = 10;
-    public static final int TITLE_H = 32;
-    public static final int RAIL_W = 118;
-    public static final int RAIL_ROW_H = 26;
+    public static final int PAD = 11;
+    public static final int TITLE_H = 36;
+    public static final int RAIL_W = 122;
+    public static final int RAIL_ROW_H = 28;
     public static final int RAIL_GAP = 3;
-    public static final int GUTTER = 8;
+    public static final int GUTTER = 9;
 
-    public static final int SEARCH_H = 26;
-    public static final int ROW_H = 30;
-    public static final int ROW_GAP = 4;
-    public static final int SETTING_H = 22;
-    public static final int DRAWER_PAD = 6;
+    public static final int SEARCH_H = 27;
+    public static final int ROW_H = 32;
+    public static final int ROW_GAP = 5;
+    public static final int SETTING_H = 24;
+    public static final int DRAWER_PAD = 7;
 
     public static final int TOGGLE_W = 30;
     public static final int TOGGLE_H = 16;
-    public static final int GEAR = 9;
-    public static final int GRIP = 12;
+    public static final int GEAR = 10;
+    public static final int GRIP = 13;
 
-    public static final int MIN_W = 430;
-    public static final int MIN_H = 250;
+    public static final int MIN_W = 440;
+    public static final int MIN_H = 260;
     public static final int MAX_W = 920;
-    public static final int MAX_H = 640;
+    public static final int MAX_H = 660;
 
     // ---- window state -----------------------------------------------------
     private static int x = 60;
     private static int y = 60;
-    private static int width = 520;
-    private static int height = 330;
+    private static int width = 560;
+    private static int height = 360;
 
     private static boolean open;
     /** 0 = fully hidden, 1 = fully shown. Drives both the fade and the scale. */
@@ -61,6 +61,13 @@ public final class BeanGui {
     /** Eased 0-1 per module, so toggles slide instead of snapping. */
     private static final java.util.Map<String, Float> TOGGLE_ANIM = new java.util.HashMap<>();
 
+    /** Y of the sliding pill behind the selected rail tab. */
+    private static float railIndicator = Float.NaN;
+    /** When the current list last changed, for the staggered row entrance. */
+    private static long listRevealAt;
+    /** Seconds elapsed in the last frame, so the renderer can ease hover states. */
+    private static float lastDelta = 1f / 60f;
+
     private BeanGui() {
     }
 
@@ -69,8 +76,8 @@ public final class BeanGui {
     public static void load() {
         x = BeanConfig.getInt("gui.x", 60);
         y = BeanConfig.getInt("gui.y", 60);
-        width = Anim.clamp(BeanConfig.getInt("gui.w", 520), MIN_W, MAX_W);
-        height = Anim.clamp(BeanConfig.getInt("gui.h", 330), MIN_H, MAX_H);
+        width = Anim.clamp(BeanConfig.getInt("gui.w", 560), MIN_W, MAX_W);
+        height = Anim.clamp(BeanConfig.getInt("gui.h", 360), MIN_H, MAX_H);
         selected = Category.byName(BeanConfig.getString("gui.category", Category.COMBAT.name()));
     }
 
@@ -104,10 +111,37 @@ public final class BeanGui {
         if (open) {
             searchFocused = true;
             query = "";
+            revealList();
+            railIndicator = Float.NaN;
         } else {
             searchFocused = false;
             persistWindow();
         }
+    }
+
+    /** Restarts the staggered row entrance. */
+    public static void revealList() {
+        listRevealAt = System.nanoTime();
+    }
+
+    /**
+     * How far row {@code index} has slid into place, 0-1. Each row starts a
+     * little after the one above it, which is what makes a list change read as
+     * a sweep rather than a jump.
+     */
+    public static float rowReveal(int index) {
+        float elapsed = (System.nanoTime() - listRevealAt) / 1_000_000_000f;
+        float delayed = elapsed - index * 0.025f;
+        return Anim.easeOutCubic(Anim.clamp01(delayed / 0.19f));
+    }
+
+    public static float lastDelta() {
+        return lastDelta;
+    }
+
+    /** Animated Y of the rail's selection pill. */
+    public static float railIndicator() {
+        return Float.isNaN(railIndicator) ? railRowY(selected.ordinal()) : railIndicator;
     }
 
     /** True while the window is still worth drawing - open, or mid fade-out. */
@@ -125,9 +159,17 @@ public final class BeanGui {
         float delta = lastFrameNanos == 0L ? 1f / 60f : (now - lastFrameNanos) / 1_000_000_000f;
         lastFrameNanos = now;
         delta = Math.min(delta, 0.1f);
+        lastDelta = delta;
 
-        progress = Anim.approach(progress, open ? 1f : 0f, delta, 17f);
+        progress = Anim.approach(progress, open ? 1f : 0f, delta, 15f);
         scroll = Anim.approach(scroll, scrollTarget, delta, 20f);
+
+        // The rail's selection pill slides between tabs. Eased here rather than
+        // while drawing, so it keeps moving even on a frame nothing renders.
+        float railTarget = railRowY(selected.ordinal());
+        railIndicator = Float.isNaN(railIndicator)
+                ? railTarget
+                : Anim.approach(railIndicator, railTarget, delta, 19f);
 
         for (Module module : ModuleRegistry.all()) {
             float target = module.isEnabled() ? 1f : 0f;
@@ -157,6 +199,7 @@ public final class BeanGui {
         query = "";
         scrollTarget = 0;
         scroll = 0;
+        revealList();
         BeanConfig.setString("gui.category", category.name());
         BeanConfig.saveSoon();
     }
@@ -166,7 +209,11 @@ public final class BeanGui {
     }
 
     public static void setQuery(String value) {
-        query = value == null ? "" : value;
+        String next = value == null ? "" : value;
+        if (!next.equals(query)) {
+            revealList();
+        }
+        query = next;
         scrollTarget = 0;
     }
 
@@ -271,6 +318,11 @@ public final class BeanGui {
 
     public static int railH() {
         return height - TITLE_H - PAD;
+    }
+
+    /** Top of the {@code index}-th tab in the rail. */
+    public static int railRowY(int index) {
+        return railY() + 11 + index * (RAIL_ROW_H + RAIL_GAP);
     }
 
     public static int panelX() {

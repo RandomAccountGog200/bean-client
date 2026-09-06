@@ -232,7 +232,7 @@ public final class ThemeTab {
                     y + (ITEM_H - font.lineHeight) / 2 + 1, active ? theme.text : theme.textDim);
 
             if (active) {
-                Draw.glyph(gfx, Draw.CHECK, x + w - 18, y + (ITEM_H - 9) / 2, 1, theme.accent);
+                Icons.check(gfx, x + w - 19, y + (ITEM_H - 9) / 2, 9, theme.accent);
             }
         }
     }
@@ -256,7 +256,7 @@ public final class ThemeTab {
         Draw.roundRect(gfx, x + 8, y + (DROPDOWN_H - 10) / 2, 10, 10, 2, theme.accent);
         Draw.text(gfx, font, Draw.clip(font, ThemeManager.current().name, w - 46), x + 24,
                 y + (DROPDOWN_H - font.lineHeight) / 2 + 1, theme.text);
-        Draw.glyph(gfx, Draw.CHEVRON_DOWN, x + w - 20, y + (DROPDOWN_H - 9) / 2, 1,
+        Icons.chevron(gfx, x + w - 21, y + (DROPDOWN_H - 9) / 2, 9, dropdownOpen ? 180 : 0,
                 hovered || dropdownOpen ? theme.accent : theme.textDim);
     }
 
@@ -280,7 +280,7 @@ public final class ThemeTab {
 
         int cursorX = x + Math.round((w - 1) * HSV[1]);
         int cursorY = y + Math.round((PICKER_H - 1) * (1f - HSV[2]));
-        ring(gfx, cursorX, cursorY, HSV[2] > 0.55f && HSV[1] < 0.55f ? 0xFF000000 : 0xFFFFFFFF);
+        cursorRing(gfx, cursorX, cursorY, HSV[2] > 0.55f && HSV[1] < 0.55f ? 0xFF000000 : 0xFFFFFFFF);
     }
 
     private static void drawHueStrip(GuiGraphicsExtractor gfx, Theme theme) {
@@ -299,15 +299,14 @@ public final class ThemeTab {
         Draw.border(gfx, x - 1, y - 1, HUE_W + 2, PICKER_H + 2, Colours.withAlpha(theme.text, 40));
 
         int markerY = y + Math.round((PICKER_H - 1) * HSV[0]);
-        Draw.rect(gfx, x - 2, markerY - 1, HUE_W + 4, 3, 0xFFFFFFFF);
-        Draw.rect(gfx, x - 1, markerY, HUE_W + 2, 1, Colours.fromHsv(HSV[0], 1f, 1f));
+        Draw.roundRect(gfx, x - 2.5, markerY - 2, HUE_W + 5, 4, 2, Colours.withAlpha(0xFF000000, 120));
+        Draw.roundRect(gfx, x - 2, markerY - 1.5, HUE_W + 4, 3, 1.5, 0xFFFFFFFF);
     }
 
-    private static void ring(GuiGraphicsExtractor gfx, int cx, int cy, int colour) {
-        Draw.rect(gfx, cx - 3, cy - 1, 2, 2, colour);
-        Draw.rect(gfx, cx + 2, cy - 1, 2, 2, colour);
-        Draw.rect(gfx, cx - 1, cy - 3, 2, 2, colour);
-        Draw.rect(gfx, cx - 1, cy + 2, 2, 2, colour);
+    /** The little circle marking the picked colour inside the SV square. */
+    private static void cursorRing(GuiGraphicsExtractor gfx, int cx, int cy, int colour) {
+        Draw.ring(gfx, cx, cy, 4.2, 2.6, Colours.withAlpha(0xFF000000, 90));
+        Draw.ring(gfx, cx, cy, 3.8, 2.6, colour);
     }
 
     private static void drawPreview(GuiGraphicsExtractor gfx, Font font, Theme theme) {

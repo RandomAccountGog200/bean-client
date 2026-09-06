@@ -33,7 +33,7 @@ Right Shift is a normal Minecraft keybind, so you can rebind it under
 | **Right Shift** | Open / close |
 | **Esc** | Close (or, if you are typing in the search box, clear it first) |
 | **Left-click a row** | Toggle that module on or off |
-| **Right-click a row**, or click its **gear** | Open / close its settings drawer |
+| **Right-click a row**, or click its **settings icon** | Open / close its settings drawer |
 | **Type** | The search box is focused when the window opens — just start typing |
 | **Scroll** | Scroll the module list |
 | **Drag the title bar** | Move the window |
@@ -53,10 +53,10 @@ Player, World, Misc, and Themes. The selected one is filled with the accent colo
 hovering lights the others up.
 
 **Module list** (right) — the rows for whichever tab you are on, six per category. Each
-row shows its name, a gear if it has settings, and a toggle switch. Switching a module
+row shows its name, a settings icon if it has settings, and a toggle switch. Switching a module
 on tints the row, slides the toggle across, and lights an accent bar down its left edge.
 
-**Settings drawer** — click a row's gear (or right-click the row) and the row grows
+**Settings drawer** — click a row's settings icon (or right-click the row) and the row grows
 downward to reveal its settings. Three kinds appear:
 
 - **Checkboxes** — a small toggle, on or off.
@@ -109,6 +109,10 @@ Nothing. Every row in Combat, Movement, Visual, Player, World and Misc is a plac
 Toggling one prints `[shell] Killaura -> ON` to the log and changes no game behaviour
 whatsoever. The names are there to give the layout something realistic to render.
 
+**[MODULES.md](MODULES.md)** lists all 36 of them with their 65 settings, defaults,
+ranges and config keys. It is generated from the registry, so it cannot drift from what
+the client actually registers.
+
 ---
 
 ## Install
@@ -117,7 +121,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.0.0.jar` in there too.
+3. Drop `bean-client-1.1.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -128,7 +132,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.0.0.jar`.
+The jar lands in `build/libs/bean-client-1.1.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
@@ -199,9 +203,15 @@ SCRIPTS("Scripts", new String[] {
 }),
 ```
 
-The icon is a 9×9 pixel mask — `#` is on, anything else is off. The rail fits about seven
-entries at the default window height; past that, make the window taller or shrink
-`BeanGui.RAIL_ROW_H`.
+That second argument is a 9×9 pixel mask — `#` is on, anything else is off — and it is
+the easy path. The seven built-in categories instead pass no mask and are drawn as
+vectors in [`Icons.java`](src/main/java/club/bean/client/gui/Icons.java) out of circles,
+rings, rotated bars and polygons, which is what keeps them smooth at every GUI scale. To
+give your category the same treatment, drop the mask and add a case to
+`Icons.category`.
+
+The rail fits about seven entries at the default window height; past that, make the
+window taller or shrink `BeanGui.RAIL_ROW_H`.
 
 ### Writing a theme
 
@@ -261,15 +271,27 @@ game, but the window still owes you a fade-out, and Fabric only extracts HUD ele
 when no screen is open, which is exactly the gap that needs filling. Both call the same
 method, so the closing window is pixel-identical to the open one.
 
-**Everything is drawn from rectangles.** Minecraft only gives you axis-aligned fills, so
-`Draw` builds every shape out of horizontal spans and merges the runs. A rounded
-rectangle costs `2 × radius + 1` quads no matter how tall it is. The bean is a rotated
-ellipse solved as a quadratic per scanline, plus a sine-curve crease — the same routine
-draws the logo, the wallpaper motif and the preview swatch. Nothing is a texture, which
-is why every shape picks up the theme's colours for free.
+**Everything is drawn from rectangles, but nothing looks like it.** Minecraft only hands
+out axis-aligned fills, and building curves out of whole pixels is exactly what makes a
+hand-rolled GUI look like a staircase. So a shape here is defined by where its edges fall
+at a given height ([`Shapes.java`](src/main/java/club/bean/client/gui/Shapes.java)), and
+`Draw.shape` samples it four times per pixel row, works out how much of each edge pixel is
+really covered, and fades that pixel by the fraction. Interior pixels stay fully opaque
+and runs of identical rows collapse into a single rectangle, so a plain rounded panel
+still costs about as many draw calls as the naive version did.
 
-**Animation runs off the wall clock**, not tick counts, so it looks the same at 20 FPS
-and at 300 — and keeps animating while the game itself is paused on a server screen.
+Every curve in the client comes off that one filler — rounded corners, toggle knobs,
+slider handles, the colour-picker cursor, all seven category icons, and the bean itself
+(a rotated ellipse solved as a quadratic per scanline, with an S-curve crease stroked
+along its long axis). Nothing is a texture, which is why every shape picks up the theme's
+colours for free.
+
+**Animation runs off the wall clock**, not tick counts, so it looks the same at 20 FPS and
+at 300 — and keeps animating while the game itself is paused on a server screen. The
+window fades, scales and rises on open; the rail's selection pill slides between tabs and
+cross-fades the labels as it passes; rows light up on hover, stagger in one after another
+when the list changes, and slide their drawers open; toggle knobs land with a bit of
+overshoot.
 
 ```
 src/main/java/club/bean/client/
@@ -287,11 +309,13 @@ src/main/java/club/bean/client/
 │   ├── ThemeManager.java    loads themes/, tracks the live one
 │   └── Colours.java         ARGB + HSV maths
 ├── gui/
-│   ├── BeanGui.java         window state and all the geometry
+│   ├── BeanGui.java         window state, geometry, animation clock
 │   ├── BeanGuiRenderer.java draws the window; owns layout hit-testing
 │   ├── BeanGuiScreen.java   input host (isPauseScreen = false)
 │   ├── ThemeTab.java        theme dropdown + colour picker
-│   ├── Draw.java            rounded rects, the bean, glyphs, widgets
+│   ├── Shapes.java          shape definitions for the filler
+│   ├── Draw.java            the anti-aliased filler, plus widgets
+│   ├── Icons.java           the vector icon set
 │   └── Anim.java            frame-rate independent easing
 └── hud/
     └── BeanHudOverlay.java  HUD host for the close animation

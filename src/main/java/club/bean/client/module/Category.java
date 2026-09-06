@@ -3,113 +3,57 @@ package club.bean.client.module;
 /**
  * The tabs down the left-hand rail, in display order.
  *
- * <p>Adding a category is a one-line change here - the rail, the search filter
- * and the module list all iterate {@link #values()}. The {@code icon} is a 9x9
- * pixel mask drawn by {@code Draw.glyph}; {@code #} is on, anything else is off.
+ * <p>Adding a category is a one-line change here — the rail, the search filter
+ * and the module list all iterate {@link #values()}.
+ *
+ * <p>The seven built-ins are drawn as vectors by {@code Icons}, so they stay
+ * smooth at any GUI scale. A category added with the second constructor
+ * supplies a 9x9 pixel mask instead ({@code '#'} is on), which is a lot less
+ * work than drawing vectors and is all most people will want.
  */
 public enum Category {
-    COMBAT("Combat", new String[] {
-            "..#....#.",
-            "..##..##.",
-            "...####..",
-            "....##...",
-            "...####..",
-            "..##..##.",
-            ".##....##",
-            ".#......#",
-            "........."
-    }),
-    MOVEMENT("Movement", new String[] {
-            "....#....",
-            "...###...",
-            "..##.##..",
-            ".##...##.",
-            ".........",
-            "....#....",
-            "...###...",
-            "..##.##..",
-            ".##...##."
-    }),
-    VISUAL("Visual", new String[] {
-            ".........",
-            "..#####..",
-            ".#.....#.",
-            "#..###..#",
-            "#.##.##.#",
-            "#..###..#",
-            ".#.....#.",
-            "..#####..",
-            "........."
-    }),
-    PLAYER("Player", new String[] {
-            "...###...",
-            "..#...#..",
-            "..#...#..",
-            "...###...",
-            ".#######.",
-            "#..###..#",
-            "#..###..#",
-            "...#.#...",
-            "..##.##.."
-    }),
-    WORLD("World", new String[] {
-            "..#####..",
-            ".##...##.",
-            "#.#.#.#.#",
-            "#..#.#..#",
-            "#########",
-            "#..#.#..#",
-            "#.#.#.#.#",
-            ".##...##.",
-            "..#####.."
-    }),
-    MISC("Misc", new String[] {
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            ".##.##.##",
-            ".##.##.##",
-            ".........",
-            ".........",
-            "........."
-    }),
+    COMBAT("Combat"),
+    MOVEMENT("Movement"),
+    VISUAL("Visual"),
+    PLAYER("Player"),
+    WORLD("World"),
+    MISC("Misc"),
     /**
      * The one category that does not list modules. The main panel swaps to the
-     * theme editor instead - see {@code ThemeTab}.
+     * theme editor instead — see {@code ThemeTab}.
      */
-    THEMES("Themes", new String[] {
-            "..#####..",
-            ".##...##.",
-            "##..#..##",
-            "#.#####.#",
-            "#.##.##.#",
-            "#..###..#",
-            "##.....##",
-            ".##...##.",
-            "..#####.."
-    }, true);
+    THEMES("Themes", true);
 
     private final String label;
-    private final String[] icon;
     private final boolean special;
+    private final String[] fallbackIcon;
 
-    Category(String label, String[] icon) {
-        this(label, icon, false);
+    Category(String label) {
+        this(label, false, null);
     }
 
-    Category(String label, String[] icon, boolean special) {
+    Category(String label, boolean special) {
+        this(label, special, null);
+    }
+
+    /** For categories added by hand that want a pixel-mask icon. */
+    Category(String label, String[] fallbackIcon) {
+        this(label, false, fallbackIcon);
+    }
+
+    Category(String label, boolean special, String[] fallbackIcon) {
         this.label = label;
-        this.icon = icon;
         this.special = special;
+        this.fallbackIcon = fallbackIcon;
     }
 
     public String label() {
         return label;
     }
 
-    public String[] icon() {
-        return icon;
+    /** A 9x9 mask to draw instead of the built-in vector icon, or null. */
+    public String[] fallbackIcon() {
+        return fallbackIcon;
     }
 
     /** True for categories that render their own panel rather than a module list. */

@@ -40,6 +40,8 @@ public final class Module {
     private boolean expanded;
     /** Eased 0-1 drawer height, driven by the renderer each frame. */
     private float drawerProgress;
+    /** Eased 0-1 hover state, so rows light up rather than snapping. */
+    private float hoverProgress;
 
     Module(String name, Category category, ToggleListener onToggle) {
         this.name = name;
@@ -102,6 +104,14 @@ public final class Module {
 
     public void setDrawerProgress(float progress) {
         this.drawerProgress = progress;
+    }
+
+    public float hoverProgress() {
+        return hoverProgress;
+    }
+
+    public void setHoverProgress(float progress) {
+        this.hoverProgress = progress;
     }
 
     /** Restores the saved state without firing the callback. Called once at registration. */

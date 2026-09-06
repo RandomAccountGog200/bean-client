@@ -1,5 +1,6 @@
 package club.bean.client.gui;
 
+import club.bean.client.gui.Shapes.Span;
 import club.bean.client.theme.Colours;
 import club.bean.client.theme.Theme;
 import net.minecraft.client.gui.Font;
@@ -8,21 +9,26 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 /**
  * Every pixel the client draws goes through here.
  *
- * <p>Minecraft only gives us axis-aligned rectangles, so rounded corners, the
- * bean logo and the category icons are all built out of horizontal spans. Each
- * helper merges its runs before filling - a rounded rectangle costs
- * {@code 2 * radius + 1} quads no matter how tall it is, and the bean is one
- * quad per scanline.
+ * <p>Minecraft only hands out axis-aligned rectangles, so curves have to be
+ * built out of horizontal spans. Doing that with whole pixels is what makes a
+ * hand-rolled GUI look like a staircase, so instead {@link #shape} samples each
+ * shape several times per pixel row, works out how much of each edge pixel is
+ * really covered, and fades those pixels by that fraction. Interior pixels stay
+ * fully opaque and consecutive identical rows are merged into one rectangle, so
+ * a plain rounded panel still costs about as many draws as it used to.
  *
- * <p>{@link #opacity} is a global multiplier applied to every colour, which is
- * how the whole window fades in and out without any per-call plumbing.
+ * <p>{@link #setOpacity} is a global multiplier applied to every colour, which
+ * is how the whole window fades in and out without per-call plumbing.
  */
 public final class Draw {
     /** Coffee beans lean. This is the tilt, in degrees, of every bean drawn. */
-    private static final double BEAN_ANGLE = -24.0;
-    private static final double COS = Math.cos(Math.toRadians(BEAN_ANGLE));
-    private static final double SIN = Math.sin(Math.toRadians(BEAN_ANGLE));
-    private static final double COS_2T = Math.cos(2 * Math.toRadians(BEAN_ANGLE));
+    public static final double BEAN_ANGLE = -24.0;
+
+    /** Sub-scanlines per pixel row. Four is enough to hide the stepping. */
+    private static final int SUB = 4;
+
+    private static final double[][] SAMPLES = new double[SUB][];
+    private static final double[] COVERAGE = new double[1024];
 
     private static float opacity = 1f;
 
@@ -37,9 +43,139 @@ public final class Draw {
         return opacity;
     }
 
-    /** Applies the global fade to a colour. All drawing helpers call this for you. */
+    /** Applies the global fade to a colour. Every helper here calls it for you. */
     public static int col(int argb) {
         return opacity >= 1f ? argb : Colours.fade(argb, opacity);
+    }
+
+    // ---- the anti-aliased scanline filler ---------------------------------
+
+    public static void shape(GuiGraphicsExtractor gfx, double yTop, double yBottom, Span span, int colour) {
+        int c = col(colour);
+        int alpha = (c >>> 24) & 0xFF;
+        if (alpha == 0) {
+            return;
+        }
+        int rgb = c & 0xFFFFFF;
+
+        int first = (int) Math.floor(yTop);
+        int last = (int) Math.ceil(yBottom);
+
+        // A run of identical full-coverage rows is emitted as one rectangle.
+        boolean pending = false;
+        int pendX0 = 0;
+        int pendX1 = 0;
+        int pendY0 = 0;
+
+        for (int y = first; y < last; y++) {
+            int count = 0;
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            boolean uniform = true;
+
+            for (int s = 0; s < SUB; s++) {
+                double[] iv = span.at(y + (s + 0.5) / SUB);
+                SAMPLES[s] = iv;
+                if (iv == null || iv.length == 0) {
+                    uniform = false;
+                    continue;
+                }
+                if (iv.length != 2) {
+                    uniform = false;
+                }
+                count++;
+                lo = Math.min(lo, (int) Math.floor(iv[0]));
+                hi = Math.max(hi, (int) Math.ceil(iv[iv.length - 1]));
+            }
+
+            if (count == 0) {
+                pending = flush(gfx, pending, pendX0, pendX1, pendY0, y, rgb, alpha);
+                continue;
+            }
+
+            // A row whose four samples agree on integer edges is a plain
+            // rectangle - the flat middle of a rounded panel, mostly.
+            if (uniform && count == SUB) {
+                double l = SAMPLES[0][0];
+                double r = SAMPLES[0][1];
+                boolean identical = l == Math.floor(l) && r == Math.floor(r);
+                for (int s = 1; s < SUB && identical; s++) {
+                    identical = SAMPLES[s][0] == l && SAMPLES[s][1] == r;
+                }
+                if (identical) {
+                    int x0 = (int) l;
+                    int x1 = (int) r;
+                    if (pending && x0 == pendX0 && x1 == pendX1) {
+                        continue;
+                    }
+                    pending = flush(gfx, pending, pendX0, pendX1, pendY0, y, rgb, alpha);
+                    pending = true;
+                    pendX0 = x0;
+                    pendX1 = x1;
+                    pendY0 = y;
+                    continue;
+                }
+            }
+
+            pending = flush(gfx, pending, pendX0, pendX1, pendY0, y, rgb, alpha);
+            emitRow(gfx, y, lo, hi, rgb, alpha);
+        }
+
+        flush(gfx, pending, pendX0, pendX1, pendY0, last, rgb, alpha);
+    }
+
+    private static boolean flush(GuiGraphicsExtractor gfx, boolean pending, int x0, int x1,
+                                 int y0, int y1, int rgb, int alpha) {
+        if (pending && x1 > x0 && y1 > y0) {
+            gfx.fill(x0, y0, x1, y1, (alpha << 24) | rgb);
+        }
+        return false;
+    }
+
+    /** Accumulates per-pixel coverage for one row, then emits it as merged runs. */
+    private static void emitRow(GuiGraphicsExtractor gfx, int y, int lo, int hi, int rgb, int alpha) {
+        int width = hi - lo;
+        if (width <= 0 || width > COVERAGE.length) {
+            return;
+        }
+        java.util.Arrays.fill(COVERAGE, 0, width, 0.0);
+
+        double share = 1.0 / SUB;
+        for (int s = 0; s < SUB; s++) {
+            double[] iv = SAMPLES[s];
+            if (iv == null) {
+                continue;
+            }
+            for (int k = 0; k + 1 < iv.length; k += 2) {
+                double l = iv[k];
+                double r = iv[k + 1];
+                if (r <= l) {
+                    continue;
+                }
+                int from = Math.max(lo, (int) Math.floor(l));
+                int to = Math.min(hi, (int) Math.ceil(r));
+                for (int x = from; x < to; x++) {
+                    // How much of pixel [x, x+1) this sub-scanline covers.
+                    double overlap = Math.min(r, x + 1) - Math.max(l, x);
+                    if (overlap > 0) {
+                        COVERAGE[x - lo] += overlap * share;
+                    }
+                }
+            }
+        }
+
+        int runStart = -1;
+        int runAlpha = -1;
+        for (int i = 0; i <= width; i++) {
+            int a = i == width ? -1 : (int) Math.round(Math.min(1, COVERAGE[i]) * alpha);
+            if (a != runAlpha) {
+                if (runAlpha > 0 && runStart >= 0) {
+                    gfx.fill(lo + runStart, y, lo + i, y + 1, (runAlpha << 24) | rgb);
+                }
+                runStart = i;
+                runAlpha = a;
+            }
+        }
     }
 
     // ---- rectangles -------------------------------------------------------
@@ -51,7 +187,7 @@ public final class Draw {
         gfx.fill(x, y, x + w, y + h, col(colour));
     }
 
-    /** 1px border just inside the given bounds. */
+    /** 1px square border just inside the given bounds. */
     public static void border(GuiGraphicsExtractor gfx, int x, int y, int w, int h, int colour) {
         if (w <= 0 || h <= 0) {
             return;
@@ -63,42 +199,67 @@ public final class Draw {
         gfx.fill(x + w - 1, y + 1, x + w, y + h - 1, c);
     }
 
-    /**
-     * Rounded rectangle. The corner inset per row comes off a circle, so the
-     * arc is properly round rather than a chamfer.
-     */
-    public static void roundRect(GuiGraphicsExtractor gfx, int x, int y, int w, int h, int radius, int colour) {
+    public static void roundRect(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
+                                 double radius, int colour) {
         if (w <= 0 || h <= 0) {
             return;
         }
-        int r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
-        if (r == 0) {
-            rect(gfx, x, y, w, h, colour);
+        if (radius < 0.5) {
+            gfx.fill((int) Math.round(x), (int) Math.round(y),
+                    (int) Math.round(x + w), (int) Math.round(y + h), col(colour));
             return;
         }
-        int c = col(colour);
-
-        for (int dy = 0; dy < r; dy++) {
-            int inset = cornerInset(dy, r);
-            // Mirror each corner row to the bottom - the shape is symmetric,
-            // so one inset calculation covers two spans.
-            gfx.fill(x + inset, y + dy, x + w - inset, y + dy + 1, c);
-            gfx.fill(x + inset, y + h - dy - 1, x + w - inset, y + h - dy, c);
-        }
-        gfx.fill(x, y + r, x + w, y + h - r, c);
+        shape(gfx, y, y + h, Shapes.roundRect(x, y, w, h, radius), colour);
     }
 
     /** Filled rounded rect with a 1px rounded border in a second colour. */
-    public static void roundRectOutlined(GuiGraphicsExtractor gfx, int x, int y, int w, int h,
-                                         int radius, int fill, int outline) {
+    public static void roundRectOutlined(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
+                                         double radius, int fill, int outline) {
         roundRect(gfx, x, y, w, h, radius, outline);
         roundRect(gfx, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), fill);
     }
 
-    private static int cornerInset(int dy, int r) {
-        double offset = r - dy - 0.5;
-        double half = Math.sqrt(Math.max(0.0, (double) r * r - offset * offset));
-        return (int) Math.round(r - half);
+    /** Hairline rounded border with nothing inside it. */
+    public static void roundBorder(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
+                                   double radius, double thickness, int colour) {
+        shape(gfx, y, y + h, yy -> {
+            double[] outer = Shapes.roundRect(x, y, w, h, radius).at(yy);
+            double[] inner = Shapes.roundRect(x + thickness, y + thickness,
+                    w - thickness * 2, h - thickness * 2, Math.max(0, radius - thickness)).at(yy);
+            if (outer.length == 0) {
+                return Shapes.EMPTY;
+            }
+            if (inner.length == 0) {
+                return outer;
+            }
+            return new double[] { outer[0], inner[0], inner[1], outer[1] };
+        }, colour);
+    }
+
+    public static void circle(GuiGraphicsExtractor gfx, double cx, double cy, double r, int colour) {
+        shape(gfx, cy - r - 1, cy + r + 1, Shapes.circle(cx, cy, r), colour);
+    }
+
+    public static void ring(GuiGraphicsExtractor gfx, double cx, double cy, double outer, double inner,
+                            int colour) {
+        shape(gfx, cy - outer - 1, cy + outer + 1, Shapes.ring(cx, cy, outer, inner), colour);
+    }
+
+    public static void polygon(GuiGraphicsExtractor gfx, double[] xs, double[] ys, int colour) {
+        double top = Double.MAX_VALUE;
+        double bottom = -Double.MAX_VALUE;
+        for (double y : ys) {
+            top = Math.min(top, y);
+            bottom = Math.max(bottom, y);
+        }
+        shape(gfx, top, bottom, Shapes.polygon(xs, ys), colour);
+    }
+
+    /** Rotated capsule-ish bar, used for icon strokes. */
+    public static void bar(GuiGraphicsExtractor gfx, double cx, double cy, double length,
+                           double thickness, double degrees, int colour) {
+        double reach = (length + thickness) / 2 + 1;
+        shape(gfx, cy - reach, cy + reach, Shapes.bar(cx, cy, length, thickness, degrees), colour);
     }
 
     // ---- the bean --------------------------------------------------------
@@ -109,101 +270,165 @@ public final class Draw {
      *
      * @param crease pass the same colour as {@code body} for a plain silhouette
      */
-    public static void bean(GuiGraphicsExtractor gfx, int cx, int cy, int w, int h, int body, int crease) {
-        double halfW = w / 2.0;
-        double halfH = h / 2.0;
-        if (halfW < 1 || halfH < 1) {
+    public static void bean(GuiGraphicsExtractor gfx, double cx, double cy, double w, double h,
+                            int body, int crease) {
+        if (w < 3 || h < 2) {
             return;
         }
-
-        // Solve for the local-frame semi-axes that make the *rotated* bean fit
-        // exactly inside the requested box.
-        double sum = halfW * halfW + halfH * halfH;
-        double diff = halfW * halfW - halfH * halfH;
-        double aSq = (sum + diff / COS_2T) / 2.0;
-        double bSq = sum - aSq;
-        if (aSq <= 0.5 || bSq <= 0.5) {
-            return;
-        }
-        double a = Math.sqrt(aSq);
-        double b = Math.sqrt(bSq);
-
-        fillRotatedEllipse(gfx, cx, cy, a, b, halfH, body);
+        double reach = Shapes.beanHalfHeight(h);
+        shape(gfx, cy - reach, cy + reach, Shapes.bean(cx, cy, w, h, BEAN_ANGLE), body);
 
         if (crease != body) {
-            drawCrease(gfx, cx, cy, a, b, crease, Math.max(1, Math.round(h / 7f)));
+            drawCrease(gfx, cx, cy, w, h, crease);
         }
     }
 
-    public static void beanSilhouette(GuiGraphicsExtractor gfx, int cx, int cy, int w, int h, int colour) {
+    public static void beanSilhouette(GuiGraphicsExtractor gfx, double cx, double cy, double w, double h,
+                                      int colour) {
         bean(gfx, cx, cy, w, h, colour, colour);
     }
 
     /**
-     * Scanline-fills the ellipse {@code (u/a)^2 + (v/b)^2 = 1} rotated by
-     * {@link #BEAN_ANGLE}. Substituting the rotation into the ellipse equation
-     * gives a quadratic in x for each row; its two roots are the span ends.
+     * The groove. In the bean's own frame it is a single sine period along the
+     * long axis - the S-shape real beans have - stroked with overlapping round
+     * dots so the curve stays smooth at any size.
      */
-    private static void fillRotatedEllipse(GuiGraphicsExtractor gfx, int cx, int cy,
-                                           double a, double b, double halfH, int colour) {
-        int c = col(colour);
-        double invA = 1.0 / (a * a);
-        double invB = 1.0 / (b * b);
-        double qa = COS * COS * invA + SIN * SIN * invB;
+    private static void drawCrease(GuiGraphicsExtractor gfx, double cx, double cy, double w, double h,
+                                   int colour) {
+        double angle = Math.toRadians(BEAN_ANGLE);
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
 
-        int top = (int) Math.floor(-halfH);
-        int bottom = (int) Math.ceil(halfH);
-        for (int dy = top; dy <= bottom; dy++) {
-            double y = dy + 0.5;
-            double qb = 2 * y * SIN * COS * (invA - invB);
-            double qc = y * y * (SIN * SIN * invA + COS * COS * invB) - 1.0;
+        // Sized against the bean's own axes, not its bounding box.
+        double[] axes = Shapes.beanAxes(w, h, BEAN_ANGLE);
+        double reach = axes[0] * 0.78;
+        double amplitude = axes[1] * 0.24;
+        double radius = Math.max(0.55, axes[1] * 0.21);
 
-            double disc = qb * qb - 4 * qa * qc;
-            if (disc <= 0) {
-                continue;
-            }
-            double root = Math.sqrt(disc);
-            int x0 = (int) Math.round((-qb - root) / (2 * qa));
-            int x1 = (int) Math.round((-qb + root) / (2 * qa));
-            if (x1 > x0) {
-                gfx.fill(cx + x0, cy + dy, cx + x1, cy + dy + 1, c);
-            }
+        int steps = Math.max(6, (int) (reach * 1.8));
+        for (int i = 0; i <= steps; i++) {
+            double u = -reach + (reach * 2) * i / steps;
+            double v = Math.sin(u / reach * Math.PI) * amplitude;
+            circle(gfx, cx + u * cos - v * sin, cy + u * sin + v * cos, radius, colour);
         }
     }
 
-    /**
-     * The groove. In the bean's own frame the crease is a single sine period
-     * along the long axis, which reads as the S-shape real beans have; each
-     * sample is then rotated back into screen space.
-     */
-    private static void drawCrease(GuiGraphicsExtractor gfx, int cx, int cy,
-                                   double a, double b, int colour, int thickness) {
-        int c = col(colour);
-        double reach = a * 0.80;
-        double amplitude = b * 0.26;
-        double step = 0.4;
+    // ---- widgets ----------------------------------------------------------
 
-        int last = Integer.MIN_VALUE;
-        for (double u = -reach; u <= reach; u += step) {
-            double v = Math.sin(u / a * Math.PI) * amplitude;
-            int x = (int) Math.round(u * COS - v * SIN);
-            int y = (int) Math.round(u * SIN + v * COS);
-            // The samples are dense enough to overlap; skipping repeats keeps
-            // the quad count down without leaving gaps.
-            int packed = (x << 16) ^ (y & 0xFFFF);
-            if (packed == last) {
-                continue;
-            }
-            last = packed;
-            gfx.fill(cx + x, cy + y, cx + x + thickness, cy + y + thickness, c);
-        }
+    /**
+     * The pill toggle. {@code progress} is the eased 0-1 on-state; the knob
+     * uses a slight overshoot so it lands with a bit of spring.
+     */
+    public static void toggleSwitch(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
+                                    float progress, Theme theme) {
+        double radius = h / 2;
+        int off = Colours.lighten(theme.panelAlt, 0.10f);
+        int track = Colours.mix(off, theme.accent, progress);
+        roundRect(gfx, x, y, w, h, radius, track);
+
+        double knob = h - 3;
+        double travel = w - knob - 3;
+        float eased = Anim.clamp01(Anim.easeOutBack(progress));
+        double knobX = x + 1.5 + travel * eased;
+        int knobColour = Colours.mix(theme.textDim, Colours.contrastOn(theme.accent), progress);
+        circle(gfx, knobX + knob / 2, y + h / 2, knob / 2, knobColour);
     }
 
-    // ---- glyphs -----------------------------------------------------------
+    /** Horizontal slider track with a filled portion and a round handle. */
+    public static void slider(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
+                              float fraction, Theme theme) {
+        double trackY = y + h / 2 - 1.5;
+        roundRect(gfx, x, trackY, w, 3, 1.5, Colours.lighten(theme.panelAlt, 0.12f));
+        double filled = w * Anim.clamp01(fraction);
+        if (filled > 1) {
+            roundRect(gfx, x, trackY, filled, 3, 1.5, theme.accent);
+        }
+        double handle = Math.min(h - 2, 9);
+        double handleX = Anim.clamp(x + filled, x, x + w);
+        circle(gfx, handleX, y + h / 2, handle / 2 + 1, Colours.darken(theme.panel, 0.25f));
+        circle(gfx, handleX, y + h / 2, handle / 2, theme.text);
+    }
 
     /**
-     * Draws a pixel mask ({@code '#'} is on) at {@code scale} pixels per cell,
-     * merging each row into as few quads as it has runs.
+     * The faint motif behind the panels. Beans sit on a brick grid and are
+     * clipped to the panel, so it reads as continuous wallpaper rather than a
+     * row of icons.
+     */
+    public static void backgroundPattern(GuiGraphicsExtractor gfx, int x, int y, int w, int h, Theme theme) {
+        if (theme.pattern == Theme.Pattern.NONE || theme.patternOpacity <= 0.001f) {
+            return;
+        }
+        int tint = Colours.withAlpha(theme.text, Math.round(255 * theme.patternOpacity * opacity));
+        if (Colours.alpha(tint) == 0) {
+            return;
+        }
+
+        gfx.enableScissor(x, y, x + w, y + h);
+        float previous = opacity;
+        opacity = 1f;
+        switch (theme.pattern) {
+            case BEAN -> {
+                int spacingX = 74;
+                int spacingY = 58;
+                for (int row = 0; row * spacingY < h + spacingY; row++) {
+                    int offset = (row % 2 == 0) ? 0 : spacingX / 2;
+                    for (int cx = x + 20 + offset; cx < x + w + spacingX; cx += spacingX) {
+                        beanSilhouette(gfx, cx, y + 22 + row * spacingY, 26, 18, tint);
+                    }
+                }
+            }
+            case DOTS -> {
+                for (int py = y + 8; py < y + h; py += 16) {
+                    for (int px = x + 8; px < x + w; px += 16) {
+                        circle(gfx, px, py, 1.4, tint);
+                    }
+                }
+            }
+            case GRID -> {
+                for (int px = x; px < x + w; px += 24) {
+                    gfx.fill(px, y, px + 1, y + h, tint);
+                }
+                for (int py = y; py < y + h; py += 24) {
+                    gfx.fill(x, py, x + w, py + 1, tint);
+                }
+            }
+            default -> {
+            }
+        }
+        opacity = previous;
+        gfx.disableScissor();
+    }
+
+    // ---- text -------------------------------------------------------------
+
+    public static void text(GuiGraphicsExtractor gfx, Font font, String s, int x, int y, int colour) {
+        gfx.text(font, s, x, y, col(colour), false);
+    }
+
+    public static void textShadow(GuiGraphicsExtractor gfx, Font font, String s, int x, int y, int colour) {
+        gfx.text(font, s, x, y, col(colour), true);
+    }
+
+    public static void textRight(GuiGraphicsExtractor gfx, Font font, String s, int right, int y, int colour) {
+        gfx.text(font, s, right - font.width(s), y, col(colour), false);
+    }
+
+    public static void textCentred(GuiGraphicsExtractor gfx, Font font, String s, int cx, int y, int colour) {
+        gfx.text(font, s, cx - font.width(s) / 2, y, col(colour), false);
+    }
+
+    /** Truncates with an ellipsis so long names never bleed past their column. */
+    public static String clip(Font font, String s, int maxWidth) {
+        if (font.width(s) <= maxWidth) {
+            return s;
+        }
+        String trimmed = font.plainSubstrByWidth(s, Math.max(0, maxWidth - font.width("...")));
+        return trimmed + "...";
+    }
+
+    /**
+     * Legacy 9x9 pixel-mask glyph, kept so a category added by hand can supply
+     * a simple icon without drawing vectors. {@code '#'} is on.
      */
     public static void glyph(GuiGraphicsExtractor gfx, String[] mask, int x, int y, int scale, int colour) {
         int c = col(colour);
@@ -221,187 +446,5 @@ public final class Draw {
                 }
             }
         }
-    }
-
-    public static int glyphSize(String[] mask, int scale) {
-        return mask.length * scale;
-    }
-
-    public static final String[] GEAR = {
-            "...###...",
-            ".#.###.#.",
-            ".#######.",
-            "###...###",
-            "##.....##",
-            "###...###",
-            ".#######.",
-            ".#.###.#.",
-            "...###..."
-    };
-
-    public static final String[] SEARCH = {
-            ".#####...",
-            "#.....#..",
-            "#.....#..",
-            "#.....#..",
-            "#.....#..",
-            ".#####...",
-            "....##...",
-            ".....##..",
-            "......##."
-    };
-
-    public static final String[] CHEVRON_DOWN = {
-            ".........",
-            ".........",
-            ".........",
-            "#.......#",
-            "##.....##",
-            ".##...##.",
-            "..##.##..",
-            "...###...",
-            "....#...."
-    };
-
-    public static final String[] CHECK = {
-            ".........",
-            ".......##",
-            "......##.",
-            ".....##..",
-            "#...##...",
-            "##.##....",
-            ".###.....",
-            "..#......",
-            "........."
-    };
-
-    public static final String[] RESET = {
-            "..#####..",
-            ".##...##.",
-            "##.....##",
-            "##.......",
-            "##.......",
-            "##.....##",
-            ".##...##.",
-            "..#####..",
-            "###......"
-    };
-
-    // ---- composites -------------------------------------------------------
-
-    /**
-     * The pill toggle. {@code progress} is the eased 0-1 on-state so the knob
-     * slides and the track cross-fades together.
-     */
-    public static void toggleSwitch(GuiGraphicsExtractor gfx, int x, int y, int w, int h,
-                                    float progress, Theme theme) {
-        int radius = h / 2;
-        int off = Colours.lighten(theme.panelAlt, 0.06f);
-        int track = Colours.mix(off, theme.accent, progress);
-        roundRect(gfx, x, y, w, h, radius, track);
-
-        int knobSize = h - 4;
-        int travel = w - knobSize - 4;
-        int knobX = x + 2 + Math.round(travel * progress);
-        int knobColour = Colours.mix(theme.textDim, Colours.contrastOn(theme.accent), progress);
-        roundRect(gfx, knobX, y + 2, knobSize, knobSize, knobSize / 2, knobColour);
-    }
-
-    /** Horizontal slider track with a filled portion and a round handle. */
-    public static void slider(GuiGraphicsExtractor gfx, int x, int y, int w, int h,
-                              float fraction, Theme theme) {
-        int trackY = y + h / 2 - 2;
-        roundRect(gfx, x, trackY, w, 4, 2, Colours.lighten(theme.panelAlt, 0.08f));
-        int filled = Math.round(w * Anim.clamp01(fraction));
-        if (filled > 0) {
-            roundRect(gfx, x, trackY, Math.max(4, filled), 4, 2, theme.accent);
-        }
-        int handle = h - 2;
-        int handleX = x + filled - handle / 2;
-        handleX = Anim.clamp(handleX, x - handle / 2, x + w - handle / 2);
-        roundRect(gfx, handleX, y + 1, handle, handle, handle / 2, theme.text);
-    }
-
-    /**
-     * The faint motif behind the panels. Beans are laid out on a brick grid and
-     * clipped to the panel, so the pattern reads as continuous wallpaper rather
-     * than as a row of icons.
-     */
-    public static void backgroundPattern(GuiGraphicsExtractor gfx, int x, int y, int w, int h, Theme theme) {
-        if (theme.pattern == Theme.Pattern.NONE || theme.patternOpacity <= 0.001f) {
-            return;
-        }
-        int tint = Colours.withAlpha(theme.text, Math.round(255 * theme.patternOpacity * opacity));
-        if (Colours.alpha(tint) == 0) {
-            return;
-        }
-
-        gfx.enableScissor(x, y, x + w, y + h);
-        switch (theme.pattern) {
-            case BEAN -> {
-                int spacingX = 74;
-                int spacingY = 58;
-                int beanW = 26;
-                int beanH = 18;
-                for (int row = 0; row * spacingY < h + spacingY; row++) {
-                    int offset = (row % 2 == 0) ? 0 : spacingX / 2;
-                    for (int cx = x + 20 + offset; cx < x + w + spacingX; cx += spacingX) {
-                        int cy = y + 22 + row * spacingY;
-                        // Pass the tint straight through - it already carries
-                        // the pattern alpha and the global fade.
-                        beanRaw(gfx, cx, cy, beanW, beanH, tint);
-                    }
-                }
-            }
-            case DOTS -> {
-                for (int py = y + 6; py < y + h; py += 14) {
-                    for (int px = x + 6; px < x + w; px += 14) {
-                        gfx.fill(px, py, px + 2, py + 2, tint);
-                    }
-                }
-            }
-            case GRID -> {
-                for (int px = x; px < x + w; px += 24) {
-                    gfx.fill(px, y, px + 1, y + h, tint);
-                }
-                for (int py = y; py < y + h; py += 24) {
-                    gfx.fill(x, py, x + w, py + 1, tint);
-                }
-            }
-            default -> {
-            }
-        }
-        gfx.disableScissor();
-    }
-
-    /** Bean silhouette that skips {@link #col} - for callers that pre-multiplied alpha. */
-    private static void beanRaw(GuiGraphicsExtractor gfx, int cx, int cy, int w, int h, int exactColour) {
-        float previous = opacity;
-        opacity = 1f;
-        beanSilhouette(gfx, cx, cy, w, h, exactColour);
-        opacity = previous;
-    }
-
-    // ---- text -------------------------------------------------------------
-
-    public static void text(GuiGraphicsExtractor gfx, Font font, String s, int x, int y, int colour) {
-        gfx.text(font, s, x, y, col(colour), false);
-    }
-
-    public static void textShadow(GuiGraphicsExtractor gfx, Font font, String s, int x, int y, int colour) {
-        gfx.text(font, s, x, y, col(colour), true);
-    }
-
-    public static void textRight(GuiGraphicsExtractor gfx, Font font, String s, int right, int y, int colour) {
-        gfx.text(font, s, right - font.width(s), y, col(colour), false);
-    }
-
-    /** Truncates with an ellipsis so long names never bleed past their column. */
-    public static String clip(Font font, String s, int maxWidth) {
-        if (font.width(s) <= maxWidth) {
-            return s;
-        }
-        String trimmed = font.plainSubstrByWidth(s, Math.max(0, maxWidth - font.width("...")));
-        return trimmed + "...";
     }
 }

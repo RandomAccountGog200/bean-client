@@ -2,6 +2,7 @@ package club.bean.client.gui;
 
 import club.bean.client.module.Category;
 import club.bean.client.module.Module;
+import club.bean.client.module.ModuleRegistry;
 import club.bean.client.module.Setting;
 import club.bean.client.theme.Colours;
 import club.bean.client.theme.Theme;
@@ -19,12 +20,12 @@ import java.util.List;
  * window is open and the HUD host calls it for the tail of the close
  * animation, so the two can never drift apart visually.
  *
- * <p>Nothing here knows what a module <em>does</em> - it walks
+ * <p>Nothing here knows what a module <em>does</em> — it walks
  * {@code ModuleRegistry} and draws names, booleans and settings.
  */
 public final class BeanGuiRenderer {
     /** One module row plus its drawer, positioned in screen space. */
-    public record Row(Module module, int y, int rowH, int blockH) {
+    public record Row(Module module, int index, int y, int rowH, int blockH) {
         public int drawerTop() {
             return y + rowH;
         }
@@ -42,20 +43,21 @@ public final class BeanGuiRenderer {
             return rows;
         }
         int y = BeanGui.listTop() - Math.round(BeanGui.scroll());
+        int index = 0;
         for (Module module : BeanGui.visibleModules()) {
             int blockH = Math.round(BeanGui.blockHeight(module));
-            rows.add(new Row(module, y, BeanGui.ROW_H, blockH));
+            rows.add(new Row(module, index++, y, BeanGui.ROW_H, blockH));
             y += blockH + BeanGui.ROW_GAP;
         }
         return rows;
     }
 
     public static int toggleX() {
-        return BeanGui.listX() + BeanGui.listW() - 12 - BeanGui.TOGGLE_W;
+        return BeanGui.listX() + BeanGui.listW() - 14 - BeanGui.TOGGLE_W;
     }
 
     public static int gearX() {
-        return toggleX() - 12 - BeanGui.GEAR;
+        return toggleX() - 13 - BeanGui.GEAR;
     }
 
     /** Y of the {@code index}-th setting inside an open drawer. */
@@ -64,34 +66,29 @@ public final class BeanGuiRenderer {
     }
 
     public static int settingX() {
-        return BeanGui.listX() + 16;
+        return BeanGui.listX() + 17;
     }
 
     public static int settingW() {
-        return BeanGui.listW() - 32;
+        return BeanGui.listW() - 34;
     }
 
-    /** Slider track for a settings row, or null when that setting is not a slider. */
+    /** Slider track for a settings row, as {@code {x, width}}. */
     public static int[] sliderBounds() {
-        int x = settingX() + 92;
-        int right = settingX() + settingW() - 40;
-        int w = Math.max(36, right - x);
-        return new int[] { x, w };
+        int x = settingX() + 96;
+        int right = settingX() + settingW() - 42;
+        return new int[] { x, Math.max(36, right - x) };
     }
 
-    public static int railRowY(int index) {
-        return BeanGui.railY() + 10 + index * (BeanGui.RAIL_ROW_H + BeanGui.RAIL_GAP);
-    }
-
-    /** The scale the window is currently drawn at - 0.94 while opening, 1 once settled. */
+    /** The scale the window is currently drawn at — under 1 while opening. */
     public static float currentScale() {
-        return Anim.lerp(0.94f, 1.0f, Anim.easeOutBack(BeanGui.progress()));
+        return Anim.lerp(0.95f, 1.0f, Anim.easeOutBack(BeanGui.progress()));
     }
 
     /**
      * Undoes the open animation's scale so hit-testing matches what is on
-     * screen. Without this, clicking during the ~150ms the window is still
-     * growing would land a few pixels off.
+     * screen. Without this, clicking while the window is still growing would
+     * land a few pixels off.
      */
     public static double localX(double screenX) {
         int cx = BeanGui.x() + BeanGui.width() / 2;
@@ -107,7 +104,7 @@ public final class BeanGuiRenderer {
 
     /**
      * @param interactive false when drawn from the HUD during the close
-     *                    animation - hover highlights are suppressed so the
+     *                    animation — hover highlights are suppressed so the
      *                    window does not react to a cursor that is no longer
      *                    controlling it
      */
@@ -120,17 +117,19 @@ public final class BeanGuiRenderer {
 
         Theme theme = ThemeManager.current();
         float alpha = Anim.easeOutCubic(progress);
-        float scale = Anim.lerp(0.94f, 1.0f, Anim.easeOutBack(progress));
+        float scale = currentScale();
 
         int cx = BeanGui.x() + BeanGui.width() / 2;
         int cy = BeanGui.y() + BeanGui.height() / 2;
 
         // Scissor rectangles are transformed by the pose in 26.x, so scaling
-        // here is safe - clipped content scales with the window.
+        // here is safe — clipped content scales with the window.
         gfx.pose().pushMatrix();
         gfx.pose().translate(cx, cy);
         gfx.pose().scale(scale, scale);
-        gfx.pose().translate(-cx, -cy);
+        // A few pixels of rise on the way in, which reads as the window
+        // settling rather than simply appearing.
+        gfx.pose().translate(-cx, -cy + (1f - Anim.easeOutCubic(progress)) * 9f);
         Draw.setOpacity(alpha);
 
         try {
@@ -147,27 +146,28 @@ public final class BeanGuiRenderer {
         int y = BeanGui.y();
         int w = BeanGui.width();
         int h = BeanGui.height();
-        int radius = theme.cornerRadius;
+        double radius = theme.cornerRadius + 2;
 
-        // Soft drop shadow: three offset rounded rects at low alpha.
-        for (int i = 3; i >= 1; i--) {
-            Draw.roundRect(gfx, x - i, y - i + 2, w + i * 2, h + i * 2, radius + i,
-                    Colours.withAlpha(0xFF000000, 22 - i * 5));
+        // Soft drop shadow: a few offset rounded rects at low alpha.
+        for (int i = 5; i >= 1; i--) {
+            Draw.roundRect(gfx, x - i, y - i + 3, w + i * 2, h + i * 2, radius + i,
+                    Colours.withAlpha(0xFF000000, 16 - i * 2));
         }
 
         Draw.roundRect(gfx, x, y, w, h, radius, theme.background);
         Draw.backgroundPattern(gfx, x, y, w, h, theme);
-        Draw.roundRect(gfx, x, y, w, h, radius, Colours.withAlpha(theme.background, 0));
+        // Hairline highlight so the window has a defined edge on any backdrop.
+        Draw.roundBorder(gfx, x, y, w, h, radius, 1, Colours.withAlpha(theme.text, 26));
 
         drawTitleBar(gfx, font, mouseX, mouseY, interactive, theme);
         drawRail(gfx, font, mouseX, mouseY, interactive, theme);
 
-        // Panel
         int px = BeanGui.panelX();
         int py = BeanGui.panelY();
         int pw = BeanGui.panelW();
         int ph = BeanGui.panelH();
-        Draw.roundRect(gfx, px, py, pw, ph, Math.max(2, radius - 2), theme.panel);
+        double panelRadius = Math.max(2, theme.cornerRadius);
+        Draw.roundRect(gfx, px, py, pw, ph, panelRadius, theme.panel);
 
         if (BeanGui.selected() == Category.THEMES) {
             gfx.enableScissor(px, py, px + pw, py + ph);
@@ -190,68 +190,74 @@ public final class BeanGuiRenderer {
                                      boolean interactive, Theme theme) {
         int x = BeanGui.x();
         int y = BeanGui.y();
+        int centre = y + BeanGui.TITLE_H / 2;
 
-        // Logo: an accent bean with the window background showing through the crease.
-        Draw.bean(gfx, x + BeanGui.PAD + 10, y + BeanGui.TITLE_H / 2, 20, 14, theme.accent, theme.background);
+        // Logo: an accent bean with the window background showing in the crease.
+        Draw.bean(gfx, x + BeanGui.PAD + 11, centre, 22, 15, theme.accent, theme.background);
 
-        int textX = x + BeanGui.PAD + 24;
-        int textY = y + BeanGui.TITLE_H / 2 - font.lineHeight / 2;
+        int textX = x + BeanGui.PAD + 26;
+        int textY = centre - font.lineHeight / 2;
         Draw.text(gfx, font, "Bean", textX, textY, theme.text);
         Draw.text(gfx, font, " Client", textX + font.width("Bean"), textY, theme.accent);
 
-        // Right-hand status: theme name and module count, dimmed.
-        String status = ThemeManager.current().name + "  ·  "
-                + club.bean.client.module.ModuleRegistry.count() + " modules";
-        int closeX = x + BeanGui.width() - BeanGui.PAD - 10;
-        Draw.textRight(gfx, font, status, closeX - 16, textY, theme.textDim);
+        int closeCx = x + BeanGui.width() - BeanGui.PAD - 8;
+        String status = ThemeManager.current().name + "  ·  " + ModuleRegistry.count() + " modules";
+        Draw.textRight(gfx, font, status, closeCx - 18, textY, Colours.fade(theme.textDim, 0.9f));
 
-        // Close button
-        boolean hoverClose = interactive && BeanGui.hit(mouseX, mouseY, closeX - 7, y + 9, 15, 15);
-        int closeColour = hoverClose ? theme.accent : theme.textDim;
-        for (int i = 0; i < 7; i++) {
-            Draw.rect(gfx, closeX - 3 + i, y + 12 + i, 1, 1, closeColour);
-            Draw.rect(gfx, closeX + 3 - i, y + 12 + i, 1, 1, closeColour);
+        boolean hoverClose = interactive && inCloseButton(mouseX, mouseY);
+        if (hoverClose) {
+            Draw.circle(gfx, closeCx, centre, 9, Colours.withAlpha(theme.text, 22));
         }
+        Icons.cross(gfx, closeCx, centre, 8, hoverClose ? theme.accent : theme.textDim);
 
         Draw.rect(gfx, x + BeanGui.PAD, y + BeanGui.TITLE_H - 1,
-                BeanGui.width() - BeanGui.PAD * 2, 1, Colours.withAlpha(theme.text, 18));
+                BeanGui.width() - BeanGui.PAD * 2, 1, Colours.withAlpha(theme.text, 16));
     }
 
     public static boolean inCloseButton(double mx, double my) {
-        int closeX = BeanGui.x() + BeanGui.width() - BeanGui.PAD - 10;
-        return BeanGui.hit(mx, my, closeX - 7, BeanGui.y() + 9, 15, 15);
+        int cx = BeanGui.x() + BeanGui.width() - BeanGui.PAD - 8;
+        int cy = BeanGui.y() + BeanGui.TITLE_H / 2;
+        return BeanGui.hit(mx, my, cx - 9, cy - 9, 19, 19);
     }
 
     private static void drawRail(GuiGraphicsExtractor gfx, Font font, int mouseX, int mouseY,
                                  boolean interactive, Theme theme) {
         int rx = BeanGui.railX();
         int ry = BeanGui.railY();
-        int radius = Math.max(2, theme.cornerRadius - 2);
+        double radius = Math.max(2, theme.cornerRadius);
         Draw.roundRect(gfx, rx, ry, BeanGui.RAIL_W, BeanGui.railH(), radius, theme.panel);
 
         Category[] categories = Category.values();
+
+        // The pill itself is eased in tickAnimations; here we just draw it.
+        float indicator = BeanGui.railIndicator();
+
+        double pillRadius = Math.max(2, radius - 1);
+        Draw.roundRect(gfx, rx + 6, indicator, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H,
+                pillRadius, theme.accent);
+
         for (int i = 0; i < categories.length; i++) {
             Category category = categories[i];
-            int y = railRowY(i);
+            int y = BeanGui.railRowY(i);
             if (y + BeanGui.RAIL_ROW_H > ry + BeanGui.railH()) {
                 break;
             }
 
-            boolean active = BeanGui.selected() == category;
             boolean hovered = interactive
                     && BeanGui.hit(mouseX, mouseY, rx + 6, y, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H);
+            // How much of the pill is under this row right now, so the label
+            // cross-fades to the on-accent colour as the pill arrives.
+            float covered = 1f - Math.min(1f, Math.abs(indicator - y) / (float) BeanGui.RAIL_ROW_H);
 
-            if (active) {
-                Draw.roundRect(gfx, rx + 6, y, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H,
-                        Math.max(2, radius - 1), theme.accent);
-            } else if (hovered) {
-                Draw.roundRect(gfx, rx + 6, y, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H,
-                        Math.max(2, radius - 1), Colours.withAlpha(theme.text, 16));
+            if (hovered && covered < 0.5f) {
+                Draw.roundRect(gfx, rx + 6, y, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H, pillRadius,
+                        Colours.withAlpha(theme.text, 14));
             }
 
-            int content = active ? Colours.contrastOn(theme.accent) : (hovered ? theme.text : theme.textDim);
-            Draw.glyph(gfx, category.icon(), rx + 16, y + (BeanGui.RAIL_ROW_H - 9) / 2, 1, content);
-            Draw.text(gfx, font, category.label(), rx + 32,
+            int resting = hovered ? theme.text : theme.textDim;
+            int content = Colours.mix(resting, Colours.contrastOn(theme.accent), covered);
+            Icons.category(gfx, category, rx + 16, y + (BeanGui.RAIL_ROW_H - 11) / 2, 11, content);
+            Draw.text(gfx, font, category.label(), rx + 34,
                     y + (BeanGui.RAIL_ROW_H - font.lineHeight) / 2 + 1, content);
         }
     }
@@ -260,7 +266,7 @@ public final class BeanGuiRenderer {
     public static Category railHit(double mx, double my) {
         Category[] categories = Category.values();
         for (int i = 0; i < categories.length; i++) {
-            if (BeanGui.hit(mx, my, BeanGui.railX() + 6, railRowY(i),
+            if (BeanGui.hit(mx, my, BeanGui.railX() + 6, BeanGui.railRowY(i),
                     BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H)) {
                 return categories[i];
             }
@@ -275,23 +281,21 @@ public final class BeanGuiRenderer {
         int sw = BeanGui.searchW();
         int sh = BeanGui.SEARCH_H;
         boolean focused = BeanGui.isSearchFocused();
-        int radius = Math.max(2, theme.cornerRadius - 2);
+        boolean hovered = interactive && BeanGui.hit(mouseX, mouseY, sx, sy, sw, sh);
+        double radius = Math.max(2, theme.cornerRadius - 1);
 
+        Draw.roundRect(gfx, sx, sy, sw, sh, radius,
+                hovered && !focused ? Colours.lighten(theme.panelAlt, 0.05f) : theme.panelAlt);
         if (focused) {
-            Draw.roundRectOutlined(gfx, sx, sy, sw, sh, radius, theme.panelAlt,
-                    Colours.withAlpha(theme.accent, 190));
-        } else {
-            boolean hovered = interactive && BeanGui.hit(mouseX, mouseY, sx, sy, sw, sh);
-            Draw.roundRect(gfx, sx, sy, sw, sh, radius,
-                    hovered ? Colours.lighten(theme.panelAlt, 0.05f) : theme.panelAlt);
+            Draw.roundBorder(gfx, sx, sy, sw, sh, radius, 1, Colours.withAlpha(theme.accent, 200));
         }
 
-        Draw.glyph(gfx, Draw.SEARCH, sx + 9, sy + (sh - 9) / 2, 1, focused ? theme.accent : theme.textDim);
+        Icons.search(gfx, sx + 9, sy + (sh - 11) / 2, 11, focused ? theme.accent : theme.textDim);
 
         String query = BeanGui.query();
         int textY = sy + (sh - font.lineHeight) / 2 + 1;
-        int textX = sx + 24;
-        int maxTextW = sw - 24 - 22;
+        int textX = sx + 26;
+        int maxTextW = sw - 26 - 24;
 
         if (query.isEmpty()) {
             Draw.text(gfx, font, "Search modules...", textX, textY, Colours.fade(theme.textDim, 0.7f));
@@ -302,17 +306,13 @@ public final class BeanGuiRenderer {
         // Caret blinks off the wall clock so it keeps ticking while the game does not.
         if (focused && (System.currentTimeMillis() / 500) % 2 == 0) {
             int caretX = textX + Math.min(font.width(query), maxTextW);
-            Draw.rect(gfx, caretX + 1, sy + 6, 1, sh - 12, theme.accent);
+            Draw.roundRect(gfx, caretX + 1, sy + 7, 1, sh - 14, 0.5, theme.accent);
         }
 
         if (!query.isEmpty()) {
             boolean hoverClear = interactive && inSearchClear(mouseX, mouseY);
-            int clearX = sx + sw - 14;
-            int clearColour = hoverClear ? theme.accent : theme.textDim;
-            for (int i = 0; i < 5; i++) {
-                Draw.rect(gfx, clearX - 2 + i, sy + sh / 2 - 2 + i, 1, 1, clearColour);
-                Draw.rect(gfx, clearX + 2 - i, sy + sh / 2 - 2 + i, 1, 1, clearColour);
-            }
+            Icons.cross(gfx, sx + sw - 14, sy + sh / 2.0, 7,
+                    hoverClear ? theme.accent : theme.textDim);
         }
     }
 
@@ -323,7 +323,7 @@ public final class BeanGuiRenderer {
 
     public static boolean inSearchClear(double mx, double my) {
         int clearX = BeanGui.searchX() + BeanGui.searchW() - 14;
-        return BeanGui.hit(mx, my, clearX - 6, BeanGui.searchY() + BeanGui.SEARCH_H / 2 - 6, 13, 13);
+        return BeanGui.hit(mx, my, clearX - 7, BeanGui.searchY() + BeanGui.SEARCH_H / 2 - 7, 15, 15);
     }
 
     private static void drawList(GuiGraphicsExtractor gfx, Font font, int mouseX, int mouseY,
@@ -342,69 +342,90 @@ public final class BeanGuiRenderer {
         if (rows.isEmpty()) {
             String message = BeanGui.query().isEmpty()
                     ? "Nothing registered in " + BeanGui.selected().label()
-                    : "No modules match \"" + Draw.clip(font, BeanGui.query(), lw - 80) + "\"";
-            Draw.text(gfx, font, message, lx + 12, top + 14, theme.textDim);
+                    : "No modules match \"" + Draw.clip(font, BeanGui.query(), lw - 90) + "\"";
+            Draw.text(gfx, font, message, lx + 14, top + 16, theme.textDim);
         }
 
         boolean cursorInList = interactive && mouseY >= top && mouseY < bottom;
+        float saved = Draw.opacity();
         for (Row row : rows) {
             if (row.y() > bottom || row.y() + row.blockH() < top) {
+                // Off-screen rows still need their hover decayed, or they come
+                // back lit when you scroll to them.
+                row.module().setHoverProgress(Anim.approach(row.module().hoverProgress(), 0f,
+                        BeanGui.lastDelta(), 16f));
                 continue;
             }
-            drawRow(gfx, font, row, mouseX, mouseY, cursorInList, theme, lx, lw);
+            drawRow(gfx, font, row, mouseX, mouseY, cursorInList, theme, lx, lw, saved);
         }
+        Draw.setOpacity(saved);
 
         gfx.disableScissor();
         drawScrollbar(gfx, theme, top, bottom);
     }
 
     private static void drawRow(GuiGraphicsExtractor gfx, Font font, Row row, int mouseX, int mouseY,
-                                boolean cursorInList, Theme theme, int lx, int lw) {
+                                boolean cursorInList, Theme theme, int lx, int lw, float baseOpacity) {
         Module module = row.module();
+        double radius = Math.max(2, theme.cornerRadius - 1);
+
+        boolean hovered = cursorInList && BeanGui.hit(mouseX, mouseY, lx, row.y(), lw, BeanGui.ROW_H);
+        float hover = Anim.approach(module.hoverProgress(), hovered ? 1f : 0f,
+                BeanGui.lastDelta(), 16f);
+        module.setHoverProgress(hover);
+
+        // Staggered entrance: slide in from the left and fade up.
+        float reveal = BeanGui.rowReveal(row.index());
+        if (reveal <= 0.004f) {
+            return;
+        }
+        Draw.setOpacity(baseOpacity * reveal);
         int y = row.y();
-        int radius = Math.max(2, theme.cornerRadius - 2);
+        int offset = Math.round((1f - reveal) * 14f);
 
-        boolean hovered = cursorInList && BeanGui.hit(mouseX, mouseY, lx, y, lw, BeanGui.ROW_H);
         float on = BeanGui.toggleAnim(module);
-
-        int base = Colours.mix(theme.panelAlt, theme.accent, on * 0.10f);
-        Draw.roundRect(gfx, lx, y, lw, row.blockH(), radius,
-                hovered ? Colours.lighten(base, 0.05f) : base);
+        int base = Colours.mix(theme.panelAlt, theme.accent, on * 0.08f);
+        Draw.roundRect(gfx, lx + offset, y, lw - offset, row.blockH(), radius,
+                Colours.lighten(base, hover * 0.06f));
 
         // Accent bar down the left edge, fading in with the toggle.
         if (on > 0.01f) {
-            Draw.roundRect(gfx, lx, y + 5, 3, BeanGui.ROW_H - 10, 1, Colours.fade(theme.accent, on));
+            Draw.roundRect(gfx, lx + offset, y + 6, 3, BeanGui.ROW_H - 12, 1.5,
+                    Colours.fade(theme.accent, on));
         }
 
-        int nameColour = Colours.mix(theme.textDim, theme.text, Math.max(on, hovered ? 1f : 0f));
-        int nameX = lx + 14;
-        int nameMax = gearX() - nameX - 10;
+        int nameColour = Colours.mix(theme.textDim, theme.text, Math.max(on, hover));
+        int nameX = lx + offset + 15;
+        int nameMax = gearX() - nameX - 12;
         int textY = y + (BeanGui.ROW_H - font.lineHeight) / 2 + 1;
 
         // A search spans every category, so results say where they came from.
         boolean searching = !BeanGui.query().isEmpty();
         String tag = searching ? module.category().label() : "";
-        int tagW = searching ? font.width(tag) + 10 : 0;
+        int tagW = searching ? font.width(tag) + 11 : 0;
 
         String name = Draw.clip(font, module.name(), nameMax - tagW);
         Draw.text(gfx, font, name, nameX, textY, nameColour);
         if (searching && font.width(name) + tagW <= nameMax) {
-            Draw.text(gfx, font, tag, nameX + font.width(name) + 10, textY,
-                    Colours.fade(theme.textDim, 0.65f));
+            Draw.text(gfx, font, tag, nameX + font.width(name) + 11, textY,
+                    Colours.fade(theme.textDim, 0.6f));
         }
 
         if (module.hasSettings()) {
             boolean hoverGear = cursorInList && inGear(row, mouseX, mouseY);
-            int gearColour = module.isExpanded() ? theme.accent : (hoverGear ? theme.text : theme.textDim);
-            Draw.glyph(gfx, Draw.GEAR, gearX(), y + (BeanGui.ROW_H - 9) / 2, 1, gearColour);
+            int gearColour = module.isExpanded()
+                    ? theme.accent
+                    : Colours.mix(theme.textDim, theme.text, hoverGear ? 1f : hover * 0.5f);
+            Icons.settings(gfx, gearX(), y + (BeanGui.ROW_H - BeanGui.GEAR) / 2, BeanGui.GEAR, gearColour);
         }
 
-        Draw.toggleSwitch(gfx, toggleX(), y + (BeanGui.ROW_H - BeanGui.TOGGLE_H) / 2,
+        Draw.toggleSwitch(gfx, toggleX(), y + (BeanGui.ROW_H - BeanGui.TOGGLE_H) / 2.0,
                 BeanGui.TOGGLE_W, BeanGui.TOGGLE_H, on, theme);
 
         if (module.drawerProgress() > 0.01f) {
-            drawDrawer(gfx, font, row, mouseX, mouseY, cursorInList, theme, lx, lw);
+            drawDrawer(gfx, font, row, mouseX, mouseY, cursorInList, theme, lx + offset, lw - offset);
         }
+        Draw.setOpacity(baseOpacity);
     }
 
     private static void drawDrawer(GuiGraphicsExtractor gfx, Font font, Row row, int mouseX, int mouseY,
@@ -418,7 +439,7 @@ public final class BeanGuiRenderer {
 
         // Clip to the animating height so the settings slide out from under the row.
         gfx.enableScissor(lx, drawerTop, lx + lw, drawerTop + visible);
-        Draw.rect(gfx, lx + 14, drawerTop, lw - 28, 1, Colours.withAlpha(theme.text, 20));
+        Draw.rect(gfx, lx + 15, drawerTop, lw - 30, 1, Colours.withAlpha(theme.text, 18));
 
         List<Setting> settings = module.settings();
         for (int i = 0; i < settings.size(); i++) {
@@ -435,14 +456,14 @@ public final class BeanGuiRenderer {
         int textY = y + (BeanGui.SETTING_H - font.lineHeight) / 2;
         boolean hovered = cursorInList && BeanGui.hit(mouseX, mouseY, sx, y, sw, BeanGui.SETTING_H);
 
-        Draw.text(gfx, font, Draw.clip(font, setting.name(), 86), sx, textY,
+        Draw.text(gfx, font, Draw.clip(font, setting.name(), 90), sx, textY,
                 hovered ? theme.text : theme.textDim);
 
         switch (setting.type()) {
             case TOGGLE -> {
                 int tw = 22;
-                int th = 11;
-                Draw.toggleSwitch(gfx, sx + sw - tw, y + (BeanGui.SETTING_H - th) / 2, tw, th,
+                int th = 12;
+                Draw.toggleSwitch(gfx, sx + sw - tw, y + (BeanGui.SETTING_H - th) / 2.0, tw, th,
                         setting.boolValue() ? 1f : 0f, theme);
             }
             case SLIDER -> {
@@ -452,8 +473,8 @@ public final class BeanGuiRenderer {
                 Draw.textRight(gfx, font, setting.displayValue(), sx + sw, textY, theme.text);
             }
             case MODE -> {
-                Draw.textRight(gfx, font, setting.displayValue(), sx + sw - 12, textY, theme.accent);
-                Draw.glyph(gfx, Draw.CHEVRON_DOWN, sx + sw - 9, y + (BeanGui.SETTING_H - 9) / 2, 1,
+                Draw.textRight(gfx, font, setting.displayValue(), sx + sw - 14, textY, theme.accent);
+                Icons.chevron(gfx, sx + sw - 10, y + (BeanGui.SETTING_H - 9) / 2, 9, 0,
                         hovered ? theme.accent : theme.textDim);
             }
         }
@@ -461,12 +482,13 @@ public final class BeanGuiRenderer {
 
     public static boolean inGear(Row row, double mx, double my) {
         return row.module().hasSettings()
-                && BeanGui.hit(mx, my, gearX() - 4, row.y() + (BeanGui.ROW_H - 9) / 2 - 4, 17, 17);
+                && BeanGui.hit(mx, my, gearX() - 5, row.y() + (BeanGui.ROW_H - BeanGui.GEAR) / 2 - 5,
+                        BeanGui.GEAR + 10, BeanGui.GEAR + 10);
     }
 
     public static boolean inToggle(Row row, double mx, double my) {
-        return BeanGui.hit(mx, my, toggleX() - 3, row.y() + (BeanGui.ROW_H - BeanGui.TOGGLE_H) / 2 - 3,
-                BeanGui.TOGGLE_W + 6, BeanGui.TOGGLE_H + 6);
+        return BeanGui.hit(mx, my, toggleX() - 4, row.y() + (BeanGui.ROW_H - BeanGui.TOGGLE_H) / 2 - 4,
+                BeanGui.TOGGLE_W + 8, BeanGui.TOGGLE_H + 8);
     }
 
     private static void drawScrollbar(GuiGraphicsExtractor gfx, Theme theme, int top, int bottom) {
@@ -476,13 +498,12 @@ public final class BeanGuiRenderer {
         }
         int trackH = bottom - top;
         float viewRatio = trackH / (trackH + max);
-        int thumbH = Math.max(18, Math.round(trackH * viewRatio));
+        int thumbH = Math.max(20, Math.round(trackH * viewRatio));
         int thumbY = top + Math.round((trackH - thumbH) * (BeanGui.scroll() / max));
-        // Sits in the panel's right padding rather than over the rows, so a
-        // long list never has the bar clipping its rounded corners.
+        // Sits in the panel's right padding rather than over the rows.
         int barX = BeanGui.panelX() + BeanGui.panelW() - 7;
-        Draw.roundRect(gfx, barX, top, 3, trackH, 1, Colours.withAlpha(theme.text, 14));
-        Draw.roundRect(gfx, barX, thumbY, 3, thumbH, 1, Colours.withAlpha(theme.accent, 150));
+        Draw.roundRect(gfx, barX, top, 3, trackH, 1.5, Colours.withAlpha(theme.text, 13));
+        Draw.roundRect(gfx, barX, thumbY, 3, thumbH, 1.5, Colours.withAlpha(theme.accent, 170));
     }
 
     private static void drawGrip(GuiGraphicsExtractor gfx, Theme theme, int mouseX, int mouseY,
@@ -490,11 +511,7 @@ public final class BeanGuiRenderer {
         int gx = BeanGui.x() + BeanGui.width() - BeanGui.GRIP;
         int gy = BeanGui.y() + BeanGui.height() - BeanGui.GRIP;
         boolean hovered = interactive && BeanGui.inGrip(mouseX, mouseY);
-        int colour = hovered ? theme.accent : Colours.withAlpha(theme.textDim, 120);
-        for (int i = 0; i < 3; i++) {
-            int offset = i * 3;
-            Draw.rect(gfx, gx + 8 - offset, gy + 8, 2, 2, colour);
-            Draw.rect(gfx, gx + 8, gy + 8 - offset, 2, 2, colour);
-        }
+        Icons.grip(gfx, gx, gy, BeanGui.GRIP,
+                hovered ? theme.accent : Colours.withAlpha(theme.textDim, 110));
     }
 }
