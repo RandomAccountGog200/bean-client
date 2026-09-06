@@ -6,9 +6,9 @@
   "description": "A bean-themed click-GUI shell for Fabric. Ships the whole window - category rail, module rows, settings drawers, live search, drag/resize, and a JSON theming system - with no module logic behind it. Wire your own features in with registerModule().",
   "authors": ["Bean Client"],
   "contact": {
-    "homepage": "https://github.com/randomprojects1234/bean-client",
-    "sources": "https://github.com/randomprojects1234/bean-client",
-    "issues": "https://github.com/randomprojects1234/bean-client/issues"
+    "homepage": "https://github.com/RandomProjects1234/bean-client",
+    "sources": "https://github.com/RandomProjects1234/bean-client",
+    "issues": "https://github.com/RandomProjects1234/bean-client/issues"
   },
   "license": "MIT",
   "icon": "assets/beanclient/icon.png",
