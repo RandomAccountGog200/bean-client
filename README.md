@@ -88,7 +88,7 @@ the theme's colours for free.
 Requires **JDK 25** (Minecraft 26.2 runs on it).
 
 ```bash
-git clone https://github.com/RandomProjects1234/bean-client.git
+git clone https://github.com/RandomAccountGog200/bean-client.git
 cd bean-client
 ./gradlew build
 ```
