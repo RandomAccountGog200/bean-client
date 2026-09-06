@@ -1,91 +1,126 @@
 # Bean Client
 
-A bean-themed click-GUI shell for Minecraft **26.2** (Fabric).
+A bean-themed click-GUI for Minecraft **26.2** (Fabric) — a coffee-coloured in-game
+menu you open with Right Shift to browse modules, flip toggles, and re-skin the whole
+thing from JSON theme files.
 
-This is the *window*, not the client. Everything visual is finished — the category
-rail, module rows, settings drawers, live search, drag-and-resize, the open/close
-animation and a JSON theming system — and there is deliberately **no module logic
-behind any of it**. Every toggle flips a boolean and prints a line to the log.
-
-It exists so that adding a real feature is one call:
-
-```java
-ModuleRegistry.registerModule("Fullbright", Category.VISUAL, on ->
-        Minecraft.getInstance().options.gamma().set(on ? 15.0 : 0.5));
-```
-
-Nothing in `club.bean.client.gui` imports a concrete module, so wiring behaviour in
-never means touching render code.
-
----
-
-## Screenshots
-
-**Combat tab, one settings drawer open.** Rows carry a name, a gear that expands the
-drawer, and a toggle. The faint bean wallpaper sits behind the panels.
+**Read this bit first:** Bean Client is the *window*, not the client. The interface is
+complete and finished, but there is deliberately **no module logic behind it**. Every
+toggle flips a boolean and writes a line to the log — nothing named in the menu is
+implemented. It is a shell to build a client *in*, not a client.
 
 ![Combat tab](docs/gui-combat.png)
 
-**Live search.** The box filters as you type and spans every category, so each result
-is tagged with where it came from.
+---
+
+## What it does
+
+### Opening it
+
+Press **Right Shift** in-game. The window fades and scales in over about 150 ms.
+
+The game does **not pause** while it is open — the world keeps ticking, mobs keep
+moving, exactly like having the chat box up. Press Right Shift again, Esc, or the ×
+in the top-right to close it; the window fades back out over the running game.
+
+Right Shift is a normal Minecraft keybind, so you can rebind it under
+**Options → Controls → Bean Client**. Rebinding changes the key that closes it too.
+
+### Controls
+
+| | |
+| --- | --- |
+| **Right Shift** | Open / close |
+| **Esc** | Close (or, if you are typing in the search box, clear it first) |
+| **Left-click a row** | Toggle that module on or off |
+| **Right-click a row**, or click its **gear** | Open / close its settings drawer |
+| **Type** | The search box is focused when the window opens — just start typing |
+| **Scroll** | Scroll the module list |
+| **Drag the title bar** | Move the window |
+| **Drag the bottom-right grip** | Resize the window |
+
+Where you put the window and how big you made it are saved, along with which tab you
+were on, which theme is active, and every toggle and setting. It all comes back the
+way you left it next time you launch.
+
+### The layout
+
+**Title bar** — the bean logo and name on the left; the active theme and the module
+count on the right; the close button. Grab anywhere along it to drag the window.
+
+**Category rail** (left) — seven tabs, each with an icon: Combat, Movement, Visual,
+Player, World, Misc, and Themes. The selected one is filled with the accent colour;
+hovering lights the others up.
+
+**Module list** (right) — the rows for whichever tab you are on, six per category. Each
+row shows its name, a gear if it has settings, and a toggle switch. Switching a module
+on tints the row, slides the toggle across, and lights an accent bar down its left edge.
+
+**Settings drawer** — click a row's gear (or right-click the row) and the row grows
+downward to reveal its settings. Three kinds appear:
+
+- **Checkboxes** — a small toggle, on or off.
+- **Sliders** — drag the handle; the value shows on the right, and integer sliders snap.
+- **Mode cyclers** — click to step forward through the options, right-click to step back.
+
+Settings are remembered between sessions, so a module you wire up later gets its values
+restored for free.
+
+**Search box** — filters the list as you type. It searches **every** category, not just
+the one you are on, so it doubles as a jump-to; each result is tagged with the category
+it came from. The × clears it, and picking a tab clears it too.
 
 ![Search](docs/gui-search.png)
 
-**Themes tab.** Pick a theme, drag the accent around the colour picker, and the whole
-window re-skins on the same frame. The swatch legend at the bottom is the theme's own
-JSON, field by field.
+### Themes
+
+The **Themes** tab is where the client re-skins itself.
 
 ![Themes tab](docs/gui-themes.png)
 
-**The same GUI on two other themes** — `classic_dark.json` (no bean motif, tighter
-corners, blue accent) and `midnight_mocha.json` (violet, radius 12):
+- **The dropdown** lists every theme in your themes folder, each with its own accent as
+  a swatch. Pick one and the entire window changes on the same frame.
+- **The colour picker** below it changes the accent — the colour used for toggles,
+  the selected tab, focus rings and highlights. Drag inside the square for saturation
+  and brightness, drag the strip for hue. The preview panel on the right shows the
+  colour and its hex code. Everything re-skins live as you drag.
+- **Reset** throws away the colour you picked and goes back to what the theme file says.
+- **Save file** writes the theme *including* your picked colour back to its own JSON, so
+  the colour becomes a permanent part of that theme.
+- **Reload** re-reads the themes folder, so you can drop a new file in and use it without
+  restarting Minecraft.
+- **The swatch legend** at the bottom shows the current theme's fields, labelled with the
+  exact JSON keys that produced them — the file format is discoverable from in-game.
+
+Three themes ship with it. Here is the same GUI under the other two — `classic_dark`
+(neutral slate, blue accent, tighter corners, no bean motif) and `midnight_mocha`
+(violet, radius 12):
 
 | Classic Dark | Midnight Mocha |
 | --- | --- |
 | ![Classic Dark](docs/gui-classic-dark.png) | ![Midnight Mocha](docs/gui-midnight-mocha.png) |
 
----
+The bean theme paints a faint repeating bean silhouette behind the panels; `classic_dark`
+turns it off. That is a per-theme setting, not a hardcoded look.
 
-## What is actually built
+### What the modules do
 
-| | |
-| --- | --- |
-| **Open / close** | Right Shift (rebindable under Controls → Bean Client). Esc also closes. |
-| **No pause** | The GUI is a `Screen` whose `isPauseScreen()` returns false, so the world keeps ticking underneath. |
-| **Animation** | Fade + scale on the way in and out, eased off the wall clock so it looks the same at 20 FPS and 300. |
-| **Category rail** | Combat, Movement, Visual, Player, World, Misc, Themes — icon and label each, with selected and hover states. |
-| **Module rows** | 6 placeholder rows per category. Name, gear, toggle. Left-click the row toggles it; right-click or the gear opens its drawer. |
-| **Settings drawers** | Checkbox, slider and mode-cycler rows. Values persist. |
-| **Search** | Filters live across every category. Esc clears, then unfocuses. |
-| **Drag / resize** | Drag the title bar; drag the grip in the bottom-right corner. Position and size are saved between sessions. |
-| **Theming** | JSON files in a `themes/` folder, switchable in-game with a live colour picker. |
-
-### Why the GUI is drawn from two places
-
-`BeanGuiRenderer` is the only code that draws the window, and two hosts call it:
-
-- **`BeanGuiScreen`** while it is open — it owns mouse and keyboard input.
-- **`BeanHudOverlay`**, on Fabric's HUD render hook, for the tail of the close
-  animation.
-
-Closing drops the screen immediately so the mouse goes straight back to the game, but
-the window still owes you a fade-out. Fabric only extracts HUD elements when no screen
-is open, which is exactly the window that needs filling. Both hosts call the same
-render method, so the closing window is pixel-identical to the open one.
-
-### Drawing
-
-Minecraft only gives you axis-aligned rectangles, so `Draw` builds everything out of
-horizontal spans and merges the runs. A rounded rectangle costs `2 × radius + 1` quads
-regardless of height; the bean is one quad per scanline (a rotated ellipse solved as a
-quadratic per row) plus a sine-curve crease. Nothing is a texture, so every shape takes
-the theme's colours for free.
+Nothing. Every row in Combat, Movement, Visual, Player, World and Misc is a placeholder.
+Toggling one prints `[shell] Killaura -> ON` to the log and changes no game behaviour
+whatsoever. The names are there to give the layout something realistic to render.
 
 ---
 
-## Build and install
+## Install
 
-Requires **JDK 25** (Minecraft 26.2 runs on it).
+Requires **Java 25** — Minecraft 26.2 runs on it.
+
+1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
+2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
+3. Drop `bean-client-1.0.0.jar` in there too.
+4. Launch, join a world, press **Right Shift**.
+
+Building it yourself:
 
 ```bash
 git clone https://github.com/RandomAccountGog200/bean-client.git
@@ -95,22 +130,31 @@ cd bean-client
 
 The jar lands in `build/libs/bean-client-1.0.0.jar`.
 
-To install: put that jar in your `.minecraft/mods/` folder alongside
-[Fabric Loader](https://fabricmc.net/use/) 0.19.3+ and
-[Fabric API](https://modrinth.com/mod/fabric-api) for 26.2. Launch, join a world, press
-**Right Shift**.
-
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
-> are ordinary `implementation` dependencies. If you are porting this back to 1.21.x you
-> will need to add mappings and switch to `modImplementation`.
+> are ordinary `implementation` dependencies. Porting this back to 1.21.x means adding
+> mappings and switching to `modImplementation`.
+
+Everything it writes lives in `config/beanclient/`:
+
+```
+config/beanclient/
+├── config.json     window position and size, active theme, accent overrides, toggles
+└── themes/
+    ├── bean.json
+    ├── classic_dark.json
+    ├── midnight_mocha.json
+    └── _example_minimal.json
+```
 
 ---
 
-## Adding a module
+## Building on it
 
-Registration is the whole API. In `BeanClient.onInitializeClient()`, or anywhere that
-runs during client init:
+### Adding a module
+
+Registration is the entire API. Nothing under `gui/` imports a concrete module, so
+adding real behaviour never means touching render code:
 
 ```java
 import static club.bean.client.module.ModuleRegistry.registerModule;
@@ -124,22 +168,21 @@ registerModule("Fullbright", Category.VISUAL, enabled -> {
         .setting(Setting.mode("Mode", "Gamma", "Nightvision"));
 ```
 
-- The callback fires on every flip with the new state.
-- The name becomes the config key, so `module.fullbright` in
-  `config/beanclient/config.json` remembers the toggle across restarts.
-- Settings persist too, under `setting.fullbright.gamma` and friends.
-- Read a setting back with `module.settings().get(0).value()` /  `.boolValue()` /
+- The callback fires on every flip, with the new state.
+- The name becomes the config key, so `module.fullbright` in `config.json` remembers the
+  toggle across restarts. Settings persist under `setting.fullbright.gamma` and friends.
+- Read values back with `module.settings().get(0).value()` / `.boolValue()` /
   `.modeValue()`.
 
-The placeholder rows live in
+The placeholder rows are all in
 [`DefaultModules.java`](src/main/java/club/bean/client/module/DefaultModules.java) —
-delete what you do not want and register your own. Nothing else needs changing.
+delete what you do not want and register your own.
 
-## Adding a category
+### Adding a category
 
 Add one enum constant to
 [`Category.java`](src/main/java/club/bean/client/module/Category.java). The rail, the
-search filter and the module list all iterate `Category.values()`, so that is the entire
+search filter and the module list all iterate `Category.values()`, so that is the whole
 change:
 
 ```java
@@ -156,17 +199,14 @@ SCRIPTS("Scripts", new String[] {
 }),
 ```
 
-The icon is a 9×9 pixel mask — `#` is on, anything else is off. It is drawn by
-`Draw.glyph`, which merges each row into as few rectangles as it has runs.
+The icon is a 9×9 pixel mask — `#` is on, anything else is off. The rail fits about seven
+entries at the default window height; past that, make the window taller or shrink
+`BeanGui.RAIL_ROW_H`.
 
-The rail is sized for about seven entries at the default window height; past that,
-either make the window taller or shrink `BeanGui.RAIL_ROW_H`.
+### Writing a theme
 
-## Adding a theme
-
-A theme is one JSON file in `config/beanclient/themes/`. The three that ship
-(`bean`, `classic_dark`, `midnight_mocha`) are copied out of the jar on first run and
-never overwritten afterwards, so editing them in place is fine.
+A theme is one JSON file in `config/beanclient/themes/`. The bundled ones are copied out
+of the jar on first run and never overwritten, so editing them in place is fine.
 
 Only five fields are required — the rest are derived from them, so a short file still
 looks deliberate:
@@ -201,25 +241,35 @@ The full set:
 
 Colours accept `#RGB`, `#RRGGBB` or `#AARRGGBB`, with or without the `#`.
 
-To use one: drop the file in `config/beanclient/themes/`, open the **Themes** tab and
-press **Reload**, then pick it from the dropdown.
-
-The three buttons on that tab:
-
-- **Reset** — drops the accent you picked in-game and goes back to the file's value.
-- **Save file** — writes the current theme *including* your picked accent back to its
-  own JSON, so the colour becomes part of the theme on disk.
-- **Reload** — re-reads the folder without restarting the game.
-
-Files whose name starts with `_` are extracted but hidden from the dropdown — that is
-how `_example_minimal.json` stays available as a template without cluttering the picker.
+Drop the file in the folder, open the Themes tab, hit **Reload**, and pick it from the
+dropdown. Files whose name starts with `_` are extracted but hidden from the picker —
+that is how `_example_minimal.json` stays available as a template without cluttering it.
 
 The copies in [`themes/`](themes/) at the repo root are the source of truth; the build
 bundles them into the jar.
 
 ---
 
-## Layout of the source
+## How it is put together
+
+**Two hosts, one render path.** `BeanGuiRenderer` is the only code that draws the window,
+and two things call it. `BeanGuiScreen` — a `Screen` whose `isPauseScreen()` returns
+false, which is why the world keeps ticking — draws it and handles input while it is
+open. `BeanHudOverlay`, on Fabric's HUD render hook, draws the tail of the close
+animation: closing drops the screen immediately so the mouse goes straight back to the
+game, but the window still owes you a fade-out, and Fabric only extracts HUD elements
+when no screen is open, which is exactly the gap that needs filling. Both call the same
+method, so the closing window is pixel-identical to the open one.
+
+**Everything is drawn from rectangles.** Minecraft only gives you axis-aligned fills, so
+`Draw` builds every shape out of horizontal spans and merges the runs. A rounded
+rectangle costs `2 × radius + 1` quads no matter how tall it is. The bean is a rotated
+ellipse solved as a quadratic per scanline, plus a sine-curve crease — the same routine
+draws the logo, the wallpaper motif and the preview swatch. Nothing is a texture, which
+is why every shape picks up the theme's colours for free.
+
+**Animation runs off the wall clock**, not tick counts, so it looks the same at 20 FPS
+and at 300 — and keeps animating while the game itself is paused on a server screen.
 
 ```
 src/main/java/club/bean/client/
@@ -245,20 +295,6 @@ src/main/java/club/bean/client/
 │   └── Anim.java            frame-rate independent easing
 └── hud/
     └── BeanHudOverlay.java  HUD host for the close animation
-```
-
-## Config
-
-Everything lives under `config/beanclient/`:
-
-```
-config/beanclient/
-├── config.json     window rect, selected theme, accent overrides, toggles
-└── themes/
-    ├── bean.json
-    ├── classic_dark.json
-    ├── midnight_mocha.json
-    └── _example_minimal.json
 ```
 
 ## License
