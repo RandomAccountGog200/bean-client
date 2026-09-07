@@ -10,10 +10,12 @@ import club.bean.client.feature.Movement;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
 import club.bean.client.gui.BeanGui;
+import club.bean.client.gui.Draw;
 import club.bean.client.gui.BeanGuiScreen;
 import club.bean.client.hud.BeanHudOverlay;
 import club.bean.client.module.DefaultModules;
 import club.bean.client.module.ModuleRegistry;
+import club.bean.client.module.Settings;
 import club.bean.client.theme.ThemeManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -83,6 +85,7 @@ public class BeanClient implements ClientModInitializer {
         Zoom.init();
         Brightness.init();
         FrameLimit.init();
+        Draw.setFast(Settings.enabled("fast_gui"));
     }
 
     /**

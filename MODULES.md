@@ -20,7 +20,7 @@ attribute, a packet the client already sends, or a projection onto the HUD — w
 is a real constraint on what these can do. Reach is the clearest case: it lengthens
 the client raycast, and the server throws the result away.
 
-There are **38 modules** across 7 categories.
+There are **39 modules** across 7 categories.
 
 | Category | Modules | Settings |
 | --- | ---: | ---: |
@@ -30,8 +30,8 @@ There are **38 modules** across 7 categories.
 | [Render](#render) | 5 | 13 |
 | [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
-| [Misc](#misc) | 2 | 1 |
-| **Total** | **38** | **45** |
+| [Misc](#misc) | 3 | 1 |
+| **Total** | **39** | **45** |
 
 ---
 
@@ -120,6 +120,7 @@ _Everything else._
 | Module | What it does | Settings |
 | --- | --- | --- |
 | **FPS Limiter**<br>`module.fps_limiter` | Caps your frame rate, and puts the vanilla setting back when you switch it off. | `Limit` — slider 10–260, default 60 |
+| **Fast GUI**<br>`module.fast_gui` | Draws the menu at GUI-pixel resolution instead of the display's. Blockier, but roughly half the draw calls - turn it on if the menu is slow. | _none_ |
 | **Toggle Sounds**<br>`module.toggle_sounds` | Plays a click when you toggle a module, so you can feel the GUI respond. | _none_ |
 
 ---

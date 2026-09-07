@@ -8,6 +8,7 @@ import club.bean.client.feature.FrameLimit;
 import club.bean.client.feature.Movement;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
+import club.bean.client.gui.Draw;
 
 /**
  * Every module Bean Client ships with — and every one of them works.
@@ -259,6 +260,10 @@ public final class DefaultModules {
                 .setting(Setting.slider("Limit", 60, 10, 260, 0))
                 // Without this the slider would only bite on the next toggle.
                 .onSettingChange(setting -> FrameLimit.apply());
+
+        module("Fast GUI", Category.MISC, Draw::setFast,
+                "Draws the menu at GUI-pixel resolution instead of the display's. Blockier, "
+                        + "but roughly half the draw calls - turn it on if the menu is slow.");
 
         module("Toggle Sounds", Category.MISC, enabled -> {},
                 "Plays a click when you toggle a module, so you can feel the GUI respond.");

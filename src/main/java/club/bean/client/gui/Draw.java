@@ -38,6 +38,24 @@ public final class Draw {
     /** Below this height, two samples look the same and cost half the rectangles. */
     private static final int SMALL_SHAPE = 16;
 
+    /**
+     * Highest resolution multiplier used for rasterising.
+     *
+     * <p>Drawing at device resolution costs one set of scanlines per device
+     * pixel row, and a curve emits draw calls per row that cannot be merged -
+     * consecutive rows sit at different horizontal insets, so there is no run to
+     * collapse. That makes the cost of a curved edge scale linearly with this
+     * number, with no way to optimise it away.
+     *
+     * <p>Two is the sweet spot. Going from 1x to 2x halves the size of a
+     * rasterised pixel and removes most of the visible stepping; 3x and 4x are
+     * progressively harder to see while costing proportionally more. Capping
+     * here bounds the worst case at twice the original draw count instead of
+     * four times it, on exactly the high GUI scales where the window is
+     * physically largest.
+     */
+    private static final int MAX_RENDER_SCALE = 2;
+
     private static final double[][] SAMPLES = new double[SUB_MAX][];
 
     /**
@@ -53,7 +71,20 @@ public final class Draw {
 
     private static float opacity = 1f;
 
+    /**
+     * When set, everything rasterises in GUI space again.
+     *
+     * <p>Pushed in by the Fast GUI module rather than read from the registry,
+     * so nothing under {@code gui/} has to know a module exists.
+     */
+    private static boolean fast;
+
     private Draw() {
+    }
+
+    /** True to rasterise in GUI space: blockier, roughly half the draw calls. */
+    public static void setFast(boolean value) {
+        fast = value;
     }
 
     public static void setOpacity(float value) {
@@ -87,6 +118,12 @@ public final class Draw {
      * no-op that skips the wrapping entirely.
      */
     public static void shape(GuiGraphicsExtractor gfx, double yTop, double yBottom, Span span, int colour) {
+        // Nothing above or below the screen is worth rasterising. Cheap here,
+        // and it matters most for ESP, which projects boxes for entities that
+        // are frequently off the top or bottom of the viewport.
+        if (yBottom < 0 || yTop > gfx.guiHeight()) {
+            return;
+        }
         int scale = guiScale();
         if (scale <= 1) {
             rasterise(gfx, yTop, yBottom, span, colour, 1);
@@ -108,13 +145,13 @@ public final class Draw {
         gfx.pose().popMatrix();
     }
 
-    /** The user's GUI scale, or 1 if the window is not up yet. */
+    /** The rasterising multiplier: the GUI scale, capped at {@link #MAX_RENDER_SCALE}. */
     private static int guiScale() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.getWindow() == null) {
+        if (fast || mc == null || mc.getWindow() == null) {
             return 1;
         }
-        return Math.max(1, mc.getWindow().getGuiScale());
+        return Math.max(1, Math.min(MAX_RENDER_SCALE, mc.getWindow().getGuiScale()));
     }
 
     private static void rasterise(GuiGraphicsExtractor gfx, double yTop, double yBottom, Span span,
@@ -130,7 +167,19 @@ public final class Draw {
         int last = (int) Math.ceil(yBottom);
         // Icons and toggle knobs are small enough that extra samples only
         // produce extra part-covered pixels, each of which is another rectangle.
-        int sub = (last - first) <= SMALL_SHAPE * scale ? 2 : SUB_MAX;
+        // Vertical supersampling exists to compensate for fat GUI pixels: at
+        // GUI scale 1 a row is one screen pixel and four samples are what hide
+        // the stepping. Rasterising at device resolution already makes the rows
+        // small, so sampling each of them four times over is paying twice for
+        // the same thing - and at scale 3 that is nine times the work of the
+        // original, which is what made the GUI crawl.
+        //
+        // Dividing the budget by the scale keeps the total sample count roughly
+        // fixed no matter what the user's GUI scale is, while the extra rows
+        // still buy the sharpness. Horizontal coverage is unaffected, so curved
+        // edges keep their anti-aliasing either way.
+        int budget = Math.max(1, Math.round((float) SUB_MAX / scale));
+        int sub = (last - first) <= SMALL_SHAPE * scale ? Math.max(1, budget / 2) : budget;
 
         // A run of identical full-coverage rows is emitted as one rectangle.
         boolean pending = false;

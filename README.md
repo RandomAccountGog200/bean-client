@@ -233,7 +233,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.22.0.jar` in there too.
+3. Drop `bean-client-1.23.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -244,7 +244,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.22.0.jar`.
+The jar lands in `build/libs/bean-client-1.23.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
@@ -437,7 +437,12 @@ anti-aliasing in GUI space gives you smooth-but-chunky curves that get blockier 
 the user's GUI scale — no amount of sub-sampling helps, because every sample lands inside
 the same fat pixel. `Draw.shape` scales the transform down by the GUI scale and multiplies
 the geometry up by the same factor, so edges are computed per real pixel. Call sites are
-unchanged, and at scale 1 it skips the wrapping entirely.
+unchanged, and at scale 1 it skips the wrapping entirely. It is capped at 2x: a curve
+emits draw calls per pixel row that cannot be merged — consecutive rows sit at different
+horizontal insets, so there is no run to collapse — which makes the cost scale linearly
+with the multiplier for no way around it. Going 1x to 2x removes most of the visible
+stepping; 3x and 4x are progressively harder to see while costing proportionally more.
+**Fast GUI** in the Misc tab drops it back to 1x if you would rather have the frames.
 
 Anti-aliasing is also skipped where it cannot help: `Draw.outline` draws an axis-aligned
 rectangle as four plain fills, because a box with no curved edge would otherwise cost the
