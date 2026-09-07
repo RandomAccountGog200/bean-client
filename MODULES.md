@@ -25,13 +25,13 @@ There are **38 modules** across 7 categories.
 | Category | Modules | Settings |
 | --- | ---: | ---: |
 | [HUD](#hud) | 13 | 2 |
-| [Combat](#combat) | 7 | 18 |
-| [Movement](#movement) | 6 | 5 |
+| [Combat](#combat) | 7 | 19 |
+| [Movement](#movement) | 6 | 6 |
 | [Render](#render) | 5 | 13 |
 | [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 2 | 1 |
-| **Total** | **38** | **43** |
+| **Total** | **38** | **45** |
 
 ---
 
@@ -63,7 +63,7 @@ _Acts on your behalf. Every one of these is what an anticheat is looking for._
 | --- | --- | --- |
 | **Killaura**<br>`module.killaura` | Attacks the nearest target on a timer. Rotation is real - your camera turns. | `Range` — slider 3–6, default 4.2<br>`Delay` — slider 0–1000, default 100<br>`Targets` — mode: Players / Mobs / All<br>`Rotate` — toggle, default true<br>`Wait for cooldown` — toggle, default true |
 | **Trigger Bot**<br>`module.trigger_bot` | Attacks whatever your crosshair is already on. You still aim it. | `Delay` — slider 0–1000, default 150<br>`Targets` — mode: All / Players / Mobs |
-| **Criticals**<br>`module.criticals` | Two small position packets before a swing, so the hit lands while the server has you airborne. | _none_ |
+| **Criticals**<br>`module.criticals` | Puts the server's copy of you in the air for the instant a hit lands. Packet mode never actually moves you; the jump modes do. | `Mode` — mode: Packet / Mini Jump / Full Jump |
 | **Auto Clicker**<br>`module.auto_clicker` | Clicks at a set rate while you hold the attack button down. | `CPS` — slider 1–20, default 10<br>`Jitter` — toggle, default true |
 | **Reach**<br>`module.reach` | Lengthens the client interaction raycast. The server validates against its own copy, so past vanilla range the attack is simply dropped. | `Extra blocks` — slider 0–3, default 1.0 |
 | **Crystal Aura**<br>`module.crystal_aura` | Places end crystals next to a target and breaks them. Scores every legal position by what the blast would do to them and to you, and acts on the best one that clears both thresholds. | `Range` — slider 3–6, default 4.5<br>`Target range` — slider 4–16, default 12<br>`Min damage` — slider 1–20, default 6<br>`Max self damage` — slider 0–20, default 8<br>`Delay` — slider 0–500, default 50<br>`Place` — toggle, default true<br>`Break` — toggle, default true |
@@ -76,7 +76,7 @@ _Changes how you move, and what the server is told about it._
 | Module | What it does | Settings |
 | --- | --- | --- |
 | **Sprint**<br>`module.sprint` | Sprints whenever you are walking forward. | _none_ |
-| **Step**<br>`module.step` | Walks up a full block. Uses the vanilla step-height attribute, so the physics that follow are the ones vanilla would have run. | `Height` — slider 0.6–2.5, default 1.0 |
+| **Step**<br>`module.step` | Walks up blocks. Legit measures the obstruction and climbs it through two intermediate positions; Simple raises the vanilla step-height attribute and lets vanilla do the rest. | `Mode` — mode: Legit / Simple<br>`Height` — slider 0.6–2.5, default 1.0 |
 | **Fly**<br>`module.fly` | Zeroes gravity and drives your motion from the movement keys. | `Speed` — slider 0.1–2.0, default 0.5 |
 | **Speed**<br>`module.speed` | Scales your horizontal motion after vanilla has computed it. | `Multiplier` — slider 1.0–3.0, default 1.4 |
 | **Velocity**<br>`module.velocity` | Damps knockback. 0% takes all of it off that axis. | `Horizontal` — slider 0–100, default 0<br>`Vertical` — slider 0–100, default 100 |

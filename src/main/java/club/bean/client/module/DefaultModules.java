@@ -111,7 +111,9 @@ public final class DefaultModules {
                 .setting(Setting.mode("Targets", "All", "Players", "Mobs"));
 
         module("Criticals", Category.COMBAT, enabled -> {},
-                "Two small position packets before a swing, so the hit lands while the server has you airborne.");
+                        "Puts the server's copy of you in the air for the instant a hit lands. "
+                                + "Packet mode never actually moves you; the jump modes do.")
+                .setting(Setting.mode("Mode", "Packet", "Mini Jump", "Full Jump"));
 
         module("Auto Clicker", Category.COMBAT, enabled -> {},
                         "Clicks at a set rate while you hold the attack button down.")
@@ -148,8 +150,10 @@ public final class DefaultModules {
                 "Sprints whenever you are walking forward.");
 
         module("Step", Category.MOVEMENT, enabled -> {},
-                        "Walks up a full block. Uses the vanilla step-height attribute, so the physics "
-                                + "that follow are the ones vanilla would have run.")
+                        "Walks up blocks. Legit measures the obstruction and climbs it through two "
+                                + "intermediate positions; Simple raises the vanilla step-height "
+                                + "attribute and lets vanilla do the rest.")
+                .setting(Setting.mode("Mode", "Legit", "Simple"))
                 .setting(Setting.slider("Height", 1.0, 0.6, 2.5, 1));
 
         module("Fly", Category.MOVEMENT, enabled -> {},

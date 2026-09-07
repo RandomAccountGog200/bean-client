@@ -10,7 +10,7 @@
     "sources": "https://github.com/RandomAccountGog200/bean-client",
     "issues": "https://github.com/RandomAccountGog200/bean-client/issues"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "icon": "assets/beanclient/icon.png",
   "environment": "client",
   "entrypoints": {

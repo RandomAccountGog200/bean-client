@@ -233,7 +233,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.21.0.jar` in there too.
+3. Drop `bean-client-1.22.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -244,7 +244,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.21.0.jar`.
+The jar lands in `build/libs/bean-client-1.22.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
@@ -499,4 +499,18 @@ src/main/java/club/bean/client/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**GPL-3.0-only** — see [LICENSE](LICENSE), and [NOTICE.md](NOTICE.md) for attribution.
+
+The project was MIT up to and including **v1.20.0**; that release stays MIT. From v1.22.0
+it is GPL-3.0, because it began incorporating work derived from
+[Wurst 7](https://github.com/Wurst-Imperium/Wurst7) and the
+[Wurst7-CevAPI](https://github.com/cev-api/Wurst7-CevAPI) fork, both GPL-3.0. Copyleft
+means that work can only be redistributed as part of a GPL-3.0 project, with the licence
+preserved and the source available — shipping it under MIT would have stripped the licence
+its authors chose.
+
+Files derived from Wurst carry a header naming the upstream class. The GUI, the
+anti-aliased renderer, the icon set, the theming system, the HUD and the world-to-screen
+projection are original to this project.
+
+Not affiliated with Wurst-Imperium, cev-api, Mojang or Microsoft.

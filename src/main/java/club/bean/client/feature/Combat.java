@@ -3,7 +3,6 @@ package club.bean.client.feature;
 import club.bean.client.module.Settings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,9 +37,9 @@ import net.minecraft.world.phys.Vec3;
  *       interaction-range attribute. The server keeps its own copy of that
  *       attribute and validates against it, so past vanilla range the attack is
  *       simply dropped. It changes what you can aim at, not what lands.</li>
- *   <li><b>Criticals</b> sends two small position packets before the swing, so
- *       the server's view of you is very slightly airborne at the moment of the
- *       hit. Whether that reads as a crit is the server's decision.</li>
+ *   <li><b>Criticals</b> puts the server's copy of you in the air for the
+ *       instant the hit lands. It lives in its own class, {@link Criticals},
+ *       because it is derived from Wurst rather than written here.</li>
  * </ul>
  *
  * <p>Rotation is real rotation: it writes the player's actual yaw and pitch, so
@@ -194,32 +193,9 @@ public final class Combat {
      * attacks from two different places.
      */
     private static void attack(Minecraft mc, LocalPlayer player, Entity victim) {
-        if (Settings.enabled("criticals")) {
-            crit(mc, player);
-        }
+        Criticals.beforeAttack(mc, player);
         mc.gameMode.attack(player, victim);
         player.swing(InteractionHand.MAIN_HAND);
-    }
-
-    /**
-     * Two position packets that leave the server's copy of you very slightly
-     * airborne, which is the state vanilla wants for a critical hit.
-     *
-     * <p>Only worth doing from the ground - in the air you are already falling,
-     * and mid-swim or in a vehicle the extra packets are just noise.
-     */
-    private static void crit(Minecraft mc, LocalPlayer player) {
-        if (!player.onGround() || player.isInWater() || player.isPassenger()) {
-            return;
-        }
-        if (mc.getConnection() == null) {
-            return;
-        }
-        double x = player.getX();
-        double y = player.getY();
-        double z = player.getZ();
-        mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(x, y + 0.0625, z, false, false));
-        mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(x, y, z, false, false));
     }
 
     // ---- helpers ----------------------------------------------------------

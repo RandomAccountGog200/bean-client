@@ -18,10 +18,10 @@ import net.minecraft.world.phys.Vec3;
  *
  * <h2>Attributes</h2>
  *
- * <p>Step and Fly go through {@link AttributeHold}. Step height and gravity are
- * both entity attributes, so changing them is a matter of hanging a transient
- * modifier on the player - no mixin, and the physics that follow are vanilla's
- * own. This is the clean half.
+ * <p>Fly goes through {@link AttributeHold}: gravity is an entity attribute, so
+ * changing it is a matter of hanging a transient modifier on the player - no
+ * mixin, and the physics that follow are vanilla's own. {@link Step} works the
+ * same way in its Simple mode. This is the clean half.
  *
  * <h2>Writing motion directly</h2>
  *
@@ -39,14 +39,8 @@ import net.minecraft.world.phys.Vec3;
  * make the server believe something it has decided to check for itself.
  */
 public final class Movement {
-    /** A player's own step height, which the attribute's base value carries. */
-    private static final double VANILLA_STEP = 0.6;
-
     /** Roughly a vanilla sprint, in blocks per tick - the ceiling Speed scales. */
     private static final double BASE_WALK_SPEED = 0.2806;
-
-    private static final AttributeHold STEP = new AttributeHold(
-            "step", Attributes.STEP_HEIGHT, AttributeModifier.Operation.ADD_VALUE);
 
     /** ADD_MULTIPLIED_TOTAL with -1 scales the final value to zero. */
     private static final AttributeHold GRAVITY = new AttributeHold(
@@ -61,7 +55,7 @@ public final class Movement {
         if (player == null || mc.level == null) {
             return;
         }
-        step(player);
+        Step.tick(mc, player);
         sprint(player);
         // Fly first: it owns the whole delta while it is on, and Speed would
         // otherwise scale the flight velocity it just wrote.
@@ -76,20 +70,9 @@ public final class Movement {
     /** Hands back both attribute holds, for a world change or shutdown. */
     public static void reset(Minecraft mc) {
         if (mc != null && mc.player != null) {
-            STEP.clear(mc.player);
+            Step.reset(mc.player);
             GRAVITY.clear(mc.player);
         }
-    }
-
-    // ---- Step -------------------------------------------------------------
-
-    private static void step(LocalPlayer player) {
-        if (!Settings.enabled("step")) {
-            STEP.clear(player);
-            return;
-        }
-        double height = Settings.number("step", "Height", 1.0);
-        STEP.set(player, height - VANILLA_STEP);
     }
 
     // ---- Sprint -----------------------------------------------------------
