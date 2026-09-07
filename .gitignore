@@ -25,3 +25,6 @@ bin/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Preview harness output
+build/preview*/

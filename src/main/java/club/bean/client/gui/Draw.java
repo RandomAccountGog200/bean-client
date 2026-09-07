@@ -79,6 +79,91 @@ public final class Draw {
      */
     private static boolean fast;
 
+    /**
+     * Where rectangles go when the renderer is being driven outside Minecraft.
+     *
+     * <p>The rasteriser is pure arithmetic whose only output is a stream of
+     * axis-aligned rectangles, so pointing that stream at a bitmap instead of
+     * the game renders the exact same pixels the client would draw. That is
+     * what {@code tools/preview} uses to check the GUI for pixelation and to
+     * count draw calls without launching the game - which had otherwise meant
+     * shipping render changes unseen.
+     */
+    public interface Sink {
+        void fill(int x0, int y0, int x1, int y1, int argb);
+    }
+
+    private static Sink sink;
+    private static int capturedScale;
+    private static int capturedHeight;
+    /** Scissor rectangle while capturing, in device pixels; null for none. */
+    private static int[] capturedScissor;
+
+    /** Redirects drawing into {@code target}, at the given render scale. */
+    public static void beginCapture(Sink target, int scale, int height) {
+        sink = target;
+        capturedScale = Math.max(1, scale);
+        capturedHeight = height;
+    }
+
+    public static void endCapture() {
+        sink = null;
+        capturedScale = 0;
+        capturedHeight = 0;
+        capturedScissor = null;
+    }
+
+    /** The scale a capture will actually rasterise at, after the cap. */
+    public static int captureScale(int requested) {
+        return Math.min(MAX_RENDER_SCALE, Math.max(1, requested));
+    }
+
+    /**
+     * The one place a rectangle reaches the screen.
+     *
+     * <p>While capturing, coordinates stay in device space rather than being
+     * mapped back through the pose - which is what makes the captured bitmap a
+     * true picture of the real pixels.
+     */
+    /**
+     * Emit for the aliased path.
+     *
+     * <p>{@link #shapeCheap} works in GUI coordinates and is deliberately never
+     * wrapped in a pose transform - the wallpaper is drawn at GUI resolution on
+     * purpose, since at its opacity the stepping is invisible and it is the
+     * difference between a couple of hundred rectangles a frame and several
+     * thousand. In game that is correct as-is. A capture has no transform to
+     * compensate with, so the coordinates are scaled here instead, which keeps
+     * the coarse GUI-pixel granularity the real thing has.
+     */
+    private static void emitCheap(GuiGraphicsExtractor gfx, int x0, int y0, int x1, int y1, int argb) {
+        if (sink == null) {
+            emit(gfx, x0, y0, x1, y1, argb);
+            return;
+        }
+        int s = guiScale();
+        emit(gfx, x0 * s, y0 * s, x1 * s, y1 * s, argb);
+    }
+
+    private static void emit(GuiGraphicsExtractor gfx, int x0, int y0, int x1, int y1, int argb) {
+        if (sink != null) {
+            if (capturedScissor != null) {
+                // Clip exactly as the game's scissor would, or a capture shows
+                // wallpaper spilling outside the panel that never renders.
+                x0 = Math.max(x0, capturedScissor[0]);
+                y0 = Math.max(y0, capturedScissor[1]);
+                x1 = Math.min(x1, capturedScissor[2]);
+                y1 = Math.min(y1, capturedScissor[3]);
+                if (x1 <= x0 || y1 <= y0) {
+                    return;
+                }
+            }
+            sink.fill(x0, y0, x1, y1, argb);
+            return;
+        }
+        gfx.fill(x0, y0, x1, y1, argb);
+    }
+
     private Draw() {
     }
 
@@ -121,7 +206,7 @@ public final class Draw {
         // Nothing above or below the screen is worth rasterising. Cheap here,
         // and it matters most for ESP, which projects boxes for entities that
         // are frequently off the top or bottom of the viewport.
-        if (yBottom < 0 || yTop > gfx.guiHeight()) {
+        if (yBottom < 0 || yTop > (sink != null ? capturedHeight : gfx.guiHeight())) {
             return;
         }
         int scale = guiScale();
@@ -129,8 +214,10 @@ public final class Draw {
             rasterise(gfx, yTop, yBottom, span, colour, 1);
             return;
         }
-        gfx.pose().pushMatrix();
-        gfx.pose().scale(1f / scale, 1f / scale);
+        if (sink == null) {
+            gfx.pose().pushMatrix();
+            gfx.pose().scale(1f / scale, 1f / scale);
+        }
         // Every Shapes span returns a freshly allocated array (the only shared
         // one is the zero-length EMPTY), so scaling it in place is safe and
         // saves an allocation per sub-scanline.
@@ -142,11 +229,16 @@ public final class Draw {
             return extents;
         };
         rasterise(gfx, yTop * scale, yBottom * scale, scaled, colour, scale);
-        gfx.pose().popMatrix();
+        if (sink == null) {
+            gfx.pose().popMatrix();
+        }
     }
 
     /** The rasterising multiplier: the GUI scale, capped at {@link #MAX_RENDER_SCALE}. */
     private static int guiScale() {
+        if (sink != null) {
+            return fast ? 1 : Math.min(MAX_RENDER_SCALE, capturedScale);
+        }
         Minecraft mc = Minecraft.getInstance();
         if (fast || mc == null || mc.getWindow() == null) {
             return 1;
@@ -247,7 +339,7 @@ public final class Draw {
     private static boolean flush(GuiGraphicsExtractor gfx, boolean pending, int x0, int x1,
                                  int y0, int y1, int rgb, int alpha) {
         if (pending && x1 > x0 && y1 > y0) {
-            gfx.fill(x0, y0, x1, y1, (alpha << 24) | rgb);
+            emit(gfx, x0, y0, x1, y1, (alpha << 24) | rgb);
         }
         return false;
     }
@@ -310,7 +402,7 @@ public final class Draw {
                 if (leftTo <= rightFrom) {
                     scanZone(gfx, y, leftFrom, leftTo, rgb, alpha, k, sub);
                     if (rightFrom > leftTo) {
-                        gfx.fill(leftTo, y, rightFrom, y + 1, (alpha << 24) | rgb);
+                        emit(gfx, leftTo, y, rightFrom, y + 1, (alpha << 24) | rgb);
                     }
                     scanZone(gfx, y, rightFrom, rightTo, rgb, alpha, k, sub);
                 } else {
@@ -373,7 +465,7 @@ public final class Draw {
             int a = i == width ? -1 : (int) Math.round(Math.min(1, coverage[i]) * alpha);
             if (a != runAlpha) {
                 if (runAlpha > 0 && runStart >= 0) {
-                    gfx.fill(from + runStart, y, from + i, y + 1, (runAlpha << 24) | rgb);
+                    emit(gfx, from + runStart, y, from + i, y + 1, (runAlpha << 24) | rgb);
                 }
                 runStart = i;
                 runAlpha = a;
@@ -410,7 +502,7 @@ public final class Draw {
             }
             if (x1 <= x0) {
                 if (pending) {
-                    gfx.fill(pendX0, pendY0, pendX1, y, exactColour);
+                    emitCheap(gfx, pendX0, pendY0, pendX1, y, exactColour);
                     pending = false;
                 }
                 continue;
@@ -419,7 +511,7 @@ public final class Draw {
                 continue;
             }
             if (pending) {
-                gfx.fill(pendX0, pendY0, pendX1, y, exactColour);
+                emitCheap(gfx, pendX0, pendY0, pendX1, y, exactColour);
             }
             pending = true;
             pendX0 = x0;
@@ -427,7 +519,7 @@ public final class Draw {
             pendY0 = y;
         }
         if (pending) {
-            gfx.fill(pendX0, pendY0, pendX1, last, exactColour);
+            emitCheap(gfx, pendX0, pendY0, pendX1, last, exactColour);
         }
     }
 
@@ -437,7 +529,7 @@ public final class Draw {
         if (w <= 0 || h <= 0) {
             return;
         }
-        gfx.fill(x, y, x + w, y + h, col(colour));
+        emit(gfx, x, y, x + w, y + h, col(colour));
     }
 
     /** 1px square border just inside the given bounds. */
@@ -446,10 +538,10 @@ public final class Draw {
             return;
         }
         int c = col(colour);
-        gfx.fill(x, y, x + w, y + 1, c);
-        gfx.fill(x, y + h - 1, x + w, y + h, c);
-        gfx.fill(x, y + 1, x + 1, y + h - 1, c);
-        gfx.fill(x + w - 1, y + 1, x + w, y + h - 1, c);
+        emit(gfx, x, y, x + w, y + 1, c);
+        emit(gfx, x, y + h - 1, x + w, y + h, c);
+        emit(gfx, x, y + 1, x + 1, y + h - 1, c);
+        emit(gfx, x + w - 1, y + 1, x + w, y + h - 1, c);
     }
 
     public static void roundRect(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
@@ -458,7 +550,7 @@ public final class Draw {
             return;
         }
         if (radius < 0.5) {
-            gfx.fill((int) Math.round(x), (int) Math.round(y),
+            emit(gfx, (int) Math.round(x), (int) Math.round(y),
                     (int) Math.round(x + w), (int) Math.round(y + h), col(colour));
             return;
         }
@@ -495,10 +587,10 @@ public final class Draw {
         int bottom = (int) Math.round(y + h);
         int inset = (int) Math.ceil(r);
 
-        gfx.fill(left + inset, top, right - inset, top + t, c);
-        gfx.fill(left + inset, bottom - t, right - inset, bottom, c);
-        gfx.fill(left, top + inset, left + t, bottom - inset, c);
-        gfx.fill(right - t, top + inset, right, bottom - inset, c);
+        emit(gfx, left + inset, top, right - inset, top + t, c);
+        emit(gfx, left + inset, bottom - t, right - inset, bottom, c);
+        emit(gfx, left, top + inset, left + t, bottom - inset, c);
+        emit(gfx, right - t, top + inset, right, bottom - inset, c);
 
         if (r < 0.5) {
             return;
@@ -543,10 +635,10 @@ public final class Draw {
         if (x1 <= x0 || y1 <= y0) {
             return;
         }
-        gfx.fill(x0, y0, x1, y0 + 1, c);
-        gfx.fill(x0, y1 - 1, x1, y1, c);
-        gfx.fill(x0, y0 + 1, x0 + 1, y1 - 1, c);
-        gfx.fill(x1 - 1, y0 + 1, x1, y1 - 1, c);
+        emit(gfx, x0, y0, x1, y0 + 1, c);
+        emit(gfx, x0, y1 - 1, x1, y1, c);
+        emit(gfx, x0, y0 + 1, x0 + 1, y1 - 1, c);
+        emit(gfx, x1 - 1, y0 + 1, x1, y1 - 1, c);
     }
 
     public static void circle(GuiGraphicsExtractor gfx, double cx, double cy, double r, int colour) {
@@ -683,7 +775,12 @@ public final class Draw {
             return;
         }
 
-        gfx.enableScissor(x, y, x + w, y + h);
+        if (sink == null) {
+            gfx.enableScissor(x, y, x + w, y + h);
+        } else {
+            int s = guiScale();
+            capturedScissor = new int[] { x * s, y * s, (x + w) * s, (y + h) * s };
+        }
         float previous = opacity;
         opacity = 1f;
         switch (theme.pattern) {
@@ -711,23 +808,27 @@ public final class Draw {
             case DOTS -> {
                 for (int py = y + 8; py < y + h; py += 18) {
                     for (int px = x + 8; px < x + w; px += 18) {
-                        gfx.fill(px, py, px + 2, py + 2, tint);
+                        emit(gfx, px, py, px + 2, py + 2, tint);
                     }
                 }
             }
             case GRID -> {
                 for (int px = x; px < x + w; px += 24) {
-                    gfx.fill(px, y, px + 1, y + h, tint);
+                    emit(gfx, px, y, px + 1, y + h, tint);
                 }
                 for (int py = y; py < y + h; py += 24) {
-                    gfx.fill(x, py, x + w, py + 1, tint);
+                    emit(gfx, x, py, x + w, py + 1, tint);
                 }
             }
             default -> {
             }
         }
         opacity = previous;
-        gfx.disableScissor();
+        if (sink == null) {
+            gfx.disableScissor();
+        } else {
+            capturedScissor = null;
+        }
     }
 
     /** True when the box lies entirely inside one of the covering rectangles. */
@@ -781,7 +882,7 @@ public final class Draw {
                 if (on && runStart < 0) {
                     runStart = column;
                 } else if (!on && runStart >= 0) {
-                    gfx.fill(x + runStart * scale, y + row * scale,
+                    emit(gfx, x + runStart * scale, y + row * scale,
                             x + column * scale, y + (row + 1) * scale, c);
                     runStart = -1;
                 }
