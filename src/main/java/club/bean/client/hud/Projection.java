@@ -40,6 +40,20 @@ public final class Projection {
     /** Points closer than this to the camera plane are treated as behind it. */
     private static final double NEAR = 0.05;
 
+    /**
+     * How far outside the screen a projected point is allowed to land, as a
+     * multiple of the screen size.
+     *
+     * <p>This is not cosmetic. The perspective divide blows up as depth
+     * approaches {@link #NEAR}: an entity standing on top of the camera has
+     * corners at depth 0.06 that project tens of thousands of pixels away. The
+     * anti-aliased filler in {@code Draw} walks one scanline per pixel row, so
+     * an unclamped box like that asks it to iterate a hundred thousand rows and
+     * the game stalls for seconds - which reads as a random freeze rather than
+     * as a rendering bug. Clamping costs nothing and bounds the work.
+     */
+    private static final double OVERSCAN = 2.0;
+
     private final Vec3 origin;
     private final Vector3fc forward;
     private final Vector3fc up;
@@ -101,9 +115,18 @@ public final class Projection {
         double ndcX = horizontal / depth / halfWidth;
         double ndcY = vertical / depth / halfHeight;
         return new float[] {
-                (float) ((ndcX + 1) * 0.5 * guiWidth),
-                (float) ((1 - ndcY) * 0.5 * guiHeight)
+                clamp((ndcX + 1) * 0.5 * guiWidth, guiWidth),
+                clamp((1 - ndcY) * 0.5 * guiHeight, guiHeight)
         };
+    }
+
+    /** Keeps a coordinate within {@link #OVERSCAN} screens of the viewport. */
+    private static float clamp(double value, int extent) {
+        double slack = extent * OVERSCAN;
+        if (Double.isNaN(value)) {
+            return 0;
+        }
+        return (float) Math.max(-slack, Math.min(extent + slack, value));
     }
 
     /**

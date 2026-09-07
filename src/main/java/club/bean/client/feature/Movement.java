@@ -30,9 +30,8 @@ import net.minecraft.world.phys.Vec3;
  * blunter, and it comes with a caveat worth understanding: the server runs its
  * own copy of the movement code and compares. Every one of these is a client
  * telling the server where it went, and a server that checks will notice a
- * position that its own physics could not have produced. Speed in particular
- * compounds - vanilla recomputes the delta from your input each tick, and this
- * scales the result each tick on top of that.
+ * position that its own physics could not have produced. That is not a bug to
+ * be tuned out - it is what a movement anticheat is.
  *
  * <p>No Fall is the clearest example of the same idea. It does not stop fall
  * damage; it tells the server you are standing on the ground while you are not,
@@ -42,6 +41,9 @@ import net.minecraft.world.phys.Vec3;
 public final class Movement {
     /** A player's own step height, which the attribute's base value carries. */
     private static final double VANILLA_STEP = 0.6;
+
+    /** Roughly a vanilla sprint, in blocks per tick - the ceiling Speed scales. */
+    private static final double BASE_WALK_SPEED = 0.2806;
 
     private static final AttributeHold STEP = new AttributeHold(
             "step", Attributes.STEP_HEIGHT, AttributeModifier.Operation.ADD_VALUE);
@@ -170,7 +172,24 @@ public final class Movement {
         }
         double multiplier = Settings.number("speed", "Multiplier", 1.4);
         Vec3 delta = player.getDeltaMovement();
-        player.setDeltaMovement(delta.x * multiplier, delta.y, delta.z * multiplier);
+        double current = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
+        if (current < 1.0e-4) {
+            return;
+        }
+        // Clamp to a ceiling rather than scaling the delta.
+        //
+        // Multiplying every tick looked equivalent and was not: vanilla derives
+        // each tick's delta from the previous one through friction, so a x1.4
+        // applied repeatedly feeds its own output back in and settles at a far
+        // higher speed than the slider asks for - which is why it felt
+        // uncontrollable rather than fast. Scaling to a target leaves vanilla's
+        // acceleration curve intact and actually honours the number.
+        double ceiling = BASE_WALK_SPEED * multiplier;
+        if (current <= ceiling) {
+            return;
+        }
+        double scale = ceiling / current;
+        player.setDeltaMovement(delta.x * scale, delta.y, delta.z * scale);
     }
 
     // ---- Velocity ---------------------------------------------------------

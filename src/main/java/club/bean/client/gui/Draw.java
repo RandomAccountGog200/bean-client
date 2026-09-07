@@ -3,6 +3,7 @@ package club.bean.client.gui;
 import club.bean.client.gui.Shapes.Span;
 import club.bean.client.theme.Colours;
 import club.bean.client.theme.Theme;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
@@ -17,6 +18,14 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * fully opaque and consecutive identical rows are merged into one rectangle, so
  * a plain rounded panel still costs about as many draws as it used to.
  *
+ * <p>Those spans are computed in <em>device</em> pixels, not GUI pixels. This
+ * matters more than it sounds: Minecraft's GUI coordinate space is a whole
+ * screen pixel at GUI scale 1, but a 3x3 block of them at scale 3, so anti-
+ * aliasing in GUI space produces smooth-but-chunky curves that get blockier the
+ * larger the user's GUI scale. {@link #shape} instead scales the transform down
+ * by the GUI scale and rasterises at the real resolution, so a rounded corner is
+ * as smooth at scale 4 as at scale 1. See {@link #shape} for the mechanics.
+ *
  * <p>{@link #setOpacity} is a global multiplier applied to every colour, which
  * is how the whole window fades in and out without per-call plumbing.
  */
@@ -30,7 +39,17 @@ public final class Draw {
     private static final int SMALL_SHAPE = 16;
 
     private static final double[][] SAMPLES = new double[SUB_MAX][];
-    private static final double[] COVERAGE = new double[1024];
+
+    /**
+     * Per-pixel coverage for one scanline zone.
+     *
+     * <p>Grown on demand rather than fixed: it used to be a flat 1024 doubles
+     * and {@code scanZone} silently drew nothing for anything wider, which is
+     * why long tracers vanished on wide screens. Rasterising at device
+     * resolution makes every shape several times wider again, so the old cap
+     * would have dropped most of the GUI.
+     */
+    private static double[] coverage = new double[2048];
 
     private static float opacity = 1f;
 
@@ -52,7 +71,54 @@ public final class Draw {
 
     // ---- the anti-aliased scanline filler ---------------------------------
 
+    /**
+     * Fills a shape, anti-aliased, at the display's real resolution.
+     *
+     * <p>The rasteriser underneath works in whole pixels of whatever coordinate
+     * space it is handed. Handing it GUI space means its "pixels" are 2-4 screen
+     * pixels wide on any normal GUI scale, and every curve in the client picks up
+     * visible stair-stepping that no amount of sub-sampling can fix - the samples
+     * are all inside one fat pixel.
+     *
+     * <p>So: scale the transform down by the GUI scale, multiply the geometry up
+     * by the same factor, and rasterise in device pixels. The shape lands in
+     * exactly the same place on screen, but its edges are now computed per real
+     * pixel. Nothing at the call sites changes, and at GUI scale 1 this is a
+     * no-op that skips the wrapping entirely.
+     */
     public static void shape(GuiGraphicsExtractor gfx, double yTop, double yBottom, Span span, int colour) {
+        int scale = guiScale();
+        if (scale <= 1) {
+            rasterise(gfx, yTop, yBottom, span, colour, 1);
+            return;
+        }
+        gfx.pose().pushMatrix();
+        gfx.pose().scale(1f / scale, 1f / scale);
+        // Every Shapes span returns a freshly allocated array (the only shared
+        // one is the zero-length EMPTY), so scaling it in place is safe and
+        // saves an allocation per sub-scanline.
+        Span scaled = y -> {
+            double[] extents = span.at(y / scale);
+            for (int i = 0; i < extents.length; i++) {
+                extents[i] *= scale;
+            }
+            return extents;
+        };
+        rasterise(gfx, yTop * scale, yBottom * scale, scaled, colour, scale);
+        gfx.pose().popMatrix();
+    }
+
+    /** The user's GUI scale, or 1 if the window is not up yet. */
+    private static int guiScale() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.getWindow() == null) {
+            return 1;
+        }
+        return Math.max(1, mc.getWindow().getGuiScale());
+    }
+
+    private static void rasterise(GuiGraphicsExtractor gfx, double yTop, double yBottom, Span span,
+                                  int colour, int scale) {
         int c = col(colour);
         int alpha = (c >>> 24) & 0xFF;
         if (alpha == 0) {
@@ -64,7 +130,7 @@ public final class Draw {
         int last = (int) Math.ceil(yBottom);
         // Icons and toggle knobs are small enough that extra samples only
         // produce extra part-covered pixels, each of which is another rectangle.
-        int sub = (last - first) <= SMALL_SHAPE ? 2 : SUB_MAX;
+        int sub = (last - first) <= SMALL_SHAPE * scale ? 2 : SUB_MAX;
 
         // A run of identical full-coverage rows is emitted as one rectangle.
         boolean pending = false;
@@ -216,10 +282,15 @@ public final class Draw {
     private static void scanZone(GuiGraphicsExtractor gfx, int y, int from, int to, int rgb, int alpha,
                                  int only, int sub) {
         int width = to - from;
-        if (width <= 0 || width > COVERAGE.length) {
+        if (width <= 0) {
             return;
         }
-        java.util.Arrays.fill(COVERAGE, 0, width, 0.0);
+        if (width > coverage.length) {
+            // Grow rather than bail. Returning here is what used to make a long
+            // tracer disappear instead of drawing.
+            coverage = new double[Integer.highestOneBit(width) * 2];
+        }
+        java.util.Arrays.fill(coverage, 0, width, 0.0);
 
         double share = 1.0 / sub;
         for (int s = 0; s < sub; s++) {
@@ -241,7 +312,7 @@ public final class Draw {
                     // How much of pixel [x, x+1) this sub-scanline covers.
                     double overlap = Math.min(r, x + 1) - Math.max(l, x);
                     if (overlap > 0) {
-                        COVERAGE[x - from] += overlap * share;
+                        coverage[x - from] += overlap * share;
                     }
                 }
             }
@@ -250,7 +321,7 @@ public final class Draw {
         int runStart = -1;
         int runAlpha = -1;
         for (int i = 0; i <= width; i++) {
-            int a = i == width ? -1 : (int) Math.round(Math.min(1, COVERAGE[i]) * alpha);
+            int a = i == width ? -1 : (int) Math.round(Math.min(1, coverage[i]) * alpha);
             if (a != runAlpha) {
                 if (runAlpha > 0 && runStart >= 0) {
                     gfx.fill(from + runStart, y, from + i, y + 1, (runAlpha << 24) | rgb);
@@ -398,6 +469,35 @@ public final class Draw {
         };
         shape(gfx, y, y + inset, band, colour);
         shape(gfx, y + h - inset, y + h, band, colour);
+    }
+
+    /**
+     * A one-pixel rectangle outline, drawn as four plain fills.
+     *
+     * <p>Deliberately not routed through {@link #shape}. An axis-aligned
+     * rectangle has no curved edge for anti-aliasing to soften, so the scanline
+     * filler spends its whole budget computing coverage values that all come out
+     * as 0 or 1 - and it emits a fill per pixel row while doing it. ESP draws one
+     * of these per visible entity per frame, which made it by far the most
+     * expensive thing on screen. Four fills is the same picture, sharper.
+     */
+    public static void outline(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
+                               int colour) {
+        int c = col(colour);
+        if (((c >>> 24) & 0xFF) == 0 || w <= 0 || h <= 0) {
+            return;
+        }
+        int x0 = (int) Math.round(x);
+        int y0 = (int) Math.round(y);
+        int x1 = (int) Math.round(x + w);
+        int y1 = (int) Math.round(y + h);
+        if (x1 <= x0 || y1 <= y0) {
+            return;
+        }
+        gfx.fill(x0, y0, x1, y0 + 1, c);
+        gfx.fill(x0, y1 - 1, x1, y1, c);
+        gfx.fill(x0, y0 + 1, x0 + 1, y1 - 1, c);
+        gfx.fill(x1 - 1, y0 + 1, x1, y1 - 1, c);
     }
 
     public static void circle(GuiGraphicsExtractor gfx, double cx, double cy, double r, int colour) {

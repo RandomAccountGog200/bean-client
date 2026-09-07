@@ -43,6 +43,16 @@ public final class WorldEsp {
     /** Boxes below this many pixels are a dot, and just add noise. */
     private static final double MIN_BOX = 2.0;
 
+    /**
+     * Most entities drawn in one frame.
+     *
+     * <p>Without a cap, a mob farm or a crowded spawn puts several hundred
+     * entities through projection and drawing every single frame, and the frame
+     * rate goes with it. Entities are walked nearest-first, so the cap drops the
+     * far ones - the ones least worth seeing.
+     */
+    private static final int MAX_DRAWN = 64;
+
     private WorldEsp() {
     }
 
@@ -64,12 +74,9 @@ public final class WorldEsp {
             return;
         }
 
-        if (esp || tracers || tags) {
-            drawEntities(gfx, mc, font, theme, projection, esp, tracers, tags);
-        }
-        if (items) {
-            drawItems(gfx, mc, font, theme, projection);
-        }
+        // One walk of the entity list, not one per module. Each of these used
+        // to iterate everything the client is rendering independently.
+        drawEntities(gfx, mc, font, theme, projection, esp, tracers, tags, items);
         if (radar) {
             drawRadar(gfx, mc, theme);
         }
@@ -78,7 +85,8 @@ public final class WorldEsp {
     // ---- entities ---------------------------------------------------------
 
     private static void drawEntities(GuiGraphicsExtractor gfx, Minecraft mc, Font font, Theme theme,
-                                     Projection projection, boolean esp, boolean tracers, boolean tags) {
+                                     Projection projection, boolean esp, boolean tracers,
+                                     boolean tags, boolean items) {
         Targets.Filter espFilter = filter("esp", "Players");
         Targets.Filter tracerFilter = filter("tracers", "Players");
         Targets.Filter tagFilter = filter("name_tags", "All");
@@ -88,11 +96,27 @@ public final class WorldEsp {
         double tagRange = Settings.number("name_tags", "Range", 48);
         boolean fill = Settings.flag("esp", "Fill", false);
 
+        double itemRange = Settings.number("item_esp", "Range", 32);
+
         Vec3 eye = mc.player.getEyePosition();
         LivingEntity aura = Combat.target();
+        int drawn = 0;
 
         for (Entity entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity living) || entity == mc.player) {
+            if (entity == mc.player) {
+                continue;
+            }
+            if (drawn >= MAX_DRAWN) {
+                break;
+            }
+            if (items && entity instanceof ItemEntity item) {
+                double itemDistance = Math.sqrt(entity.getBoundingBox().getCenter().distanceToSqr(eye));
+                if (itemDistance <= itemRange && drawItem(gfx, font, theme, projection, item)) {
+                    drawn++;
+                }
+                continue;
+            }
+            if (!(entity instanceof LivingEntity living)) {
                 continue;
             }
             double distance = Math.sqrt(entity.getBoundingBox().getCenter().distanceToSqr(eye));
@@ -110,6 +134,7 @@ public final class WorldEsp {
                 continue;
             }
             int colour = living == aura ? TARGETED : colourFor(theme, living);
+            drawn++;
 
             if (wantEsp) {
                 outline(gfx, box, colour, fill);
@@ -131,7 +156,10 @@ public final class WorldEsp {
         if (fill) {
             Draw.roundRect(gfx, x, y, w, h, 2, Colours.withAlpha(colour, 45));
         }
-        Draw.roundBorder(gfx, x, y, w, h, 2, 1, colour);
+        // Draw.outline, not Draw.roundBorder: the box has no curved edge, so the
+        // anti-aliased filler would burn a fill per pixel row producing the same
+        // picture. This was the single most expensive thing ESP did.
+        Draw.outline(gfx, x, y, w, h, colour);
     }
 
     /**
@@ -179,30 +207,21 @@ public final class WorldEsp {
 
     // ---- items ------------------------------------------------------------
 
-    private static void drawItems(GuiGraphicsExtractor gfx, Minecraft mc, Font font, Theme theme,
-                                  Projection projection) {
-        double range = Settings.number("item_esp", "Range", 32);
-        Vec3 eye = mc.player.getEyePosition();
-
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof ItemEntity item)) {
-                continue;
-            }
-            if (Math.sqrt(entity.getBoundingBox().getCenter().distanceToSqr(eye)) > range) {
-                continue;
-            }
-            float[] point = projection.project(entity.getBoundingBox().getCenter());
-            if (point == null) {
-                continue;
-            }
-            int count = item.getItem().getCount();
-            String label = item.getItem().getHoverName().getString() + (count > 1 ? " x" + count : "");
-            int width = font.width(label);
-
-            Draw.roundRect(gfx, point[0] - width / 2.0 - 3, point[1] - 6, width + 6,
-                    font.lineHeight + 3, 2, Colours.withAlpha(theme.background, 180));
-            Draw.text(gfx, font, label, (int) (point[0] - width / 2.0), (int) point[1] - 5, theme.accent);
+    /** @return true if the item was actually on screen and drawn */
+    private static boolean drawItem(GuiGraphicsExtractor gfx, Font font, Theme theme,
+                                    Projection projection, ItemEntity item) {
+        float[] point = projection.project(item.getBoundingBox().getCenter());
+        if (point == null) {
+            return false;
         }
+        int count = item.getItem().getCount();
+        String label = item.getItem().getHoverName().getString() + (count > 1 ? " x" + count : "");
+        int width = font.width(label);
+
+        Draw.roundRect(gfx, point[0] - width / 2.0 - 3, point[1] - 6, width + 6,
+                font.lineHeight + 3, 2, Colours.withAlpha(theme.background, 180));
+        Draw.text(gfx, font, label, (int) (point[0] - width / 2.0), (int) point[1] - 5, theme.accent);
+        return true;
     }
 
     // ---- radar ------------------------------------------------------------

@@ -73,7 +73,27 @@ public final class CrystalAura {
     /** Vanilla's {@code f2}: both the distance divisor and the damage scale. */
     private static final double BLAST = CRYSTAL_POWER * 2.0;
 
+    /**
+     * How many positions per tick may pay for an exact exposure test.
+     *
+     * <p>{@link ServerExplosion#getSeenPercent} raycasts a grid against the
+     * world, so it is by far the most expensive thing this module does. The
+     * cheap distance-only ceiling below usually leaves only a handful of
+     * candidates, but on an obsidian floor it can leave dozens, and a hard cap
+     * is what stops a bad frame becoming a stall.
+     */
+    private static final int EXACT_BUDGET = 24;
+
     private static long lastAction;
+
+    /**
+     * The explosion damage source, rebuilt only when the level changes.
+     *
+     * <p>It is immutable and identical for every candidate, and building one
+     * per position was allocating thousands of objects a second.
+     */
+    private static DamageSource cachedSource;
+    private static Object cachedFor;
 
     private CrystalAura() {
     }
@@ -129,7 +149,7 @@ public final class CrystalAura {
             }
             // Breaking it sets it off where it stands, so the question is what
             // that explosion does to us - not to whoever placed it.
-            if (damageTo(crystal.position(), player) > maxSelf) {
+            if (damageExact(crystal.position(), player) > maxSelf) {
                 continue;
             }
             best = crystal;
@@ -157,28 +177,54 @@ public final class CrystalAura {
 
         BlockPos best = null;
         double bestDamage = 0;
+        int budget = EXACT_BUDGET;
 
         BlockPos origin = player.blockPosition();
         int reach = (int) Math.ceil(range);
+        double rangeSqr = range * range;
 
+        // Tests run cheapest-first, and the order is the whole performance
+        // story. Block lookups are nearly free, the entity-overlap test
+        // allocates a list, and the exposure test raycasts - so each one only
+        // runs on what survived the last.
         for (BlockPos pos : BlockPos.betweenClosed(
                 origin.offset(-reach, -reach, -reach), origin.offset(reach, reach, reach))) {
-            if (!canPlaceOn(mc, pos)) {
+
+            if (!isSupport(mc, pos)) {
                 continue;
             }
             // Range is measured to the block being clicked, the same way the
             // server measures it.
-            if (Vec3.atCenterOf(pos).distanceToSqr(eye) > range * range) {
+            if (Vec3.atCenterOf(pos).distanceToSqr(eye) > rangeSqr) {
                 continue;
             }
             // Where the crystal will actually sit: centred on the column, at
             // the foot of the empty block above.
             Vec3 centre = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
 
-            if (damageTo(centre, player) > maxSelf) {
+            // Distance-only ceiling: the most this blast could possibly do if
+            // nothing were in the way. No raycast, and it rejects almost
+            // everything, because damage falls off fast with distance.
+            if (damageCeiling(centre, victim) < minDamage) {
                 continue;
             }
-            double damage = damageTo(centre, victim);
+            if (budget <= 0) {
+                break;
+            }
+            BlockPos above = pos.above();
+            if (!isClear(mc, above)) {
+                continue;
+            }
+            // Same trick for our own safety: only pay for the exact number when
+            // the ceiling says it might hurt.
+            if (damageCeiling(centre, player) > maxSelf) {
+                budget--;
+                if (damageExact(centre, player) > maxSelf) {
+                    continue;
+                }
+            }
+            budget--;
+            double damage = damageExact(centre, victim);
             if (damage < minDamage || damage <= bestDamage) {
                 continue;
             }
@@ -201,15 +247,17 @@ public final class CrystalAura {
      * the server sends placements that bounce, and one that is stricter quietly
      * loses positions that would have worked.
      */
-    private static boolean canPlaceOn(Minecraft mc, BlockPos pos) {
+    private static boolean isSupport(Minecraft mc, BlockPos pos) {
         BlockState state = mc.level.getBlockState(pos);
-        if (!state.is(Blocks.OBSIDIAN) && !state.is(Blocks.BEDROCK)) {
-            return false;
-        }
-        BlockPos above = pos.above();
-        if (!mc.level.isEmptyBlock(above)) {
-            return false;
-        }
+        return (state.is(Blocks.OBSIDIAN) || state.is(Blocks.BEDROCK))
+                && mc.level.isEmptyBlock(pos.above());
+    }
+
+    /**
+     * The entity half of the rule, kept separate because it allocates a list
+     * and so must not run on every block in the search volume.
+     */
+    private static boolean isClear(Minecraft mc, BlockPos above) {
         AABB space = new AABB(
                 above.getX(), above.getY(), above.getZ(),
                 above.getX() + 1.0, above.getY() + 2.0, above.getZ() + 1.0);
@@ -235,13 +283,29 @@ public final class CrystalAura {
      * <p>See the class javadoc: this is an upper bound, because enchantment
      * protection cannot be computed client-side.
      */
-    private static double damageTo(Vec3 centre, LivingEntity entity) {
+    private static double damageExact(Vec3 centre, LivingEntity entity) {
+        return damage(centre, entity, -1f);
+    }
+
+    /**
+     * The most a blast at {@code centre} could do, assuming nothing blocks it.
+     *
+     * <p>Exposure only ever reduces damage, so this is a true upper bound and
+     * rejecting on it can never discard a position that would have qualified.
+     * It costs no raycast, which is the entire point.
+     */
+    private static double damageCeiling(Vec3 centre, LivingEntity entity) {
+        return damage(centre, entity, 1f);
+    }
+
+    /** @param seen exposure in 0-1, or negative to measure it properly */
+    private static double damage(Vec3 centre, LivingEntity entity, float seen) {
         double distance = Math.sqrt(entity.distanceToSqr(centre)) / BLAST;
         if (distance > 1.0) {
             return 0;
         }
-        float seen = ServerExplosion.getSeenPercent(centre, entity);
-        double impact = (1.0 - distance) * seen;
+        float exposure = seen >= 0 ? seen : ServerExplosion.getSeenPercent(centre, entity);
+        double impact = (1.0 - distance) * exposure;
         // The int cast is vanilla's, and it is load-bearing: the truncation is
         // why a crystal at the edge of its radius does exactly 1 damage.
         float raw = (int) ((impact * impact + impact) / 2.0 * 7.0 * BLAST + 1.0);
@@ -250,7 +314,7 @@ public final class CrystalAura {
 
     private static float reduce(LivingEntity entity, float raw) {
         float damage = raw;
-        DamageSource source = Explosion.getDefaultDamageSource(entity.level(), null);
+        DamageSource source = damageSource(entity);
         float toughness = (float) entity.getAttributeValue(Attributes.ARMOR_TOUGHNESS);
         damage = CombatRules.getDamageAfterAbsorb(
                 entity, damage, source, entity.getArmorValue(), toughness);
@@ -261,5 +325,15 @@ public final class CrystalAura {
             damage = damage * Math.max(0, 25 - level * 5) / 25.0f;
         }
         return Math.max(0, damage);
+    }
+
+    /** One damage source per level, rather than one per candidate position. */
+    private static DamageSource damageSource(LivingEntity entity) {
+        Object level = entity.level();
+        if (cachedSource == null || cachedFor != level) {
+            cachedSource = Explosion.getDefaultDamageSource(entity.level(), null);
+            cachedFor = level;
+        }
+        return cachedSource;
     }
 }

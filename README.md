@@ -431,6 +431,19 @@ level — so exposure is exact, and a crystal behind a block is correctly worth 
 is still an upper bound: enchantment protection needs a `ServerLevel` the client does not
 have, so it is left out.
 
+**Curves are rasterised at the display's resolution, not the GUI's.** Minecraft's GUI
+coordinate space is one screen pixel at GUI scale 1 but a 3x3 block of them at scale 3, so
+anti-aliasing in GUI space gives you smooth-but-chunky curves that get blockier the higher
+the user's GUI scale — no amount of sub-sampling helps, because every sample lands inside
+the same fat pixel. `Draw.shape` scales the transform down by the GUI scale and multiplies
+the geometry up by the same factor, so edges are computed per real pixel. Call sites are
+unchanged, and at scale 1 it skips the wrapping entirely.
+
+Anti-aliasing is also skipped where it cannot help: `Draw.outline` draws an axis-aligned
+rectangle as four plain fills, because a box with no curved edge would otherwise cost the
+scanline filler one fill per pixel row to produce exactly the same picture. ESP draws one
+per visible entity per frame, so that one mattered.
+
 **Animation runs off the wall clock**, not tick counts, so it looks the same at 20 FPS and
 at 300 — and keeps animating while the game itself is paused on a server screen. The
 window fades, scales and rises on open; the rail's selection pill slides between tabs and
