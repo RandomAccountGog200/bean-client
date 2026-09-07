@@ -1,5 +1,6 @@
 package club.bean.client;
 
+import club.bean.client.feature.Brightness;
 import club.bean.client.feature.ChatFilter;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
@@ -22,9 +23,11 @@ import org.slf4j.LoggerFactory;
  * Bean Client entry point.
  *
  * <p>Design rule for the whole client: it may read state the vanilla client
- * already holds, and it may draw to your own screen. It never writes to the
- * network, never acts on your behalf, and never derives information the client
- * was not already given.
+ * already holds, it may draw to your own screen, and it may move a vanilla
+ * option you could have moved yourself. It never writes to the network, never
+ * acts on your behalf, and never derives information the client was not already
+ * given. There are no mixins - nothing here reaches into the render or network
+ * path.
  */
 public class BeanClient implements ClientModInitializer {
     public static final String MOD_ID = "beanclient";
@@ -67,7 +70,15 @@ public class BeanClient implements ClientModInitializer {
             }
         }
 
-        Zoom.setHeld(BeanKeys.zoom.isDown());
+        if (mc.level == null) {
+            // Left the world - hand every borrowed vanilla option back.
+            Zoom.reset();
+            Brightness.reset();
+        } else {
+            Zoom.setHeld(BeanKeys.zoom.isDown());
+            Zoom.tick();
+            Brightness.tick();
+        }
         Trackers.tick(mc);
         BeanConfig.flush();
     }

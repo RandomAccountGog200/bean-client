@@ -8,8 +8,12 @@ thing from JSON theme files.
 it changes something.
 
 They all share one property: each reads state the vanilla client already has and draws it
-on your own screen, or flips a vanilla option. Nothing is sent to the server, nothing is
-automated on your behalf, and nothing reveals what the game did not already send you.
+on your own screen, or moves a vanilla option you could have moved yourself. Nothing is
+sent to the server, nothing is automated on your behalf, and nothing reveals what the game
+did not already send you.
+
+**There are no mixins.** Nothing here reaches into the render or network path, which is
+both a design decision and the reason the client cannot do the things below.
 That is why there is no Combat tab — aim assistance, movement exploits and
 see-through-walls rendering only pay off by taking something from the other people on the
 server, and they are not going to appear here.
@@ -143,8 +147,8 @@ generated straight from the registry so it cannot drift from the code.
 
 | | |
 | --- | --- |
-| **Fullbright** | Lifts the brightness floor past the vanilla slider. Lighting only — it cannot show you a block the server never sent. |
-| **Zoom** | Hold **C** to narrow your FOV. The same change as moving the FOV slider. |
+| **Brightness** | The vanilla Brightness slider on a toggle, with your own value restored when you switch it off. It tops out where the game does — this is not a true fullbright. |
+| **Zoom** | Hold **C** to narrow your FOV, by moving the vanilla FOV option. Floors at the game's own minimum of 30, so roughly 2.3x from a default 70. |
 
 **SMP** — server quality of life
 
@@ -180,7 +184,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-2.0.0.jar` in there too.
+3. Drop `bean-client-2.1.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -191,7 +195,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-2.0.0.jar`.
+The jar lands in `build/libs/bean-client-2.1.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods

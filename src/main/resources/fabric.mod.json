@@ -16,9 +16,6 @@
   "entrypoints": {
     "client": ["club.bean.client.BeanClient"]
   },
-  "mixins": [
-    "bean.mixins.json"
-  ],
   "depends": {
     "fabricloader": ">=0.18.4",
     "minecraft": "~26.2",

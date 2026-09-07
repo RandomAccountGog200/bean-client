@@ -15,10 +15,10 @@ There are **20 modules** across 4 categories.
 | Category | Modules | Settings |
 | --- | ---: | ---: |
 | [HUD](#hud) | 13 | 2 |
-| [Visual](#visual) | 2 | 3 |
+| [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 2 | 1 |
-| **Total** | **20** | **8** |
+| **Total** | **20** | **7** |
 
 ---
 
@@ -44,8 +44,8 @@ There are **20 modules** across 4 categories.
 
 | Module | What it does | Settings |
 | --- | --- | --- |
-| **Fullbright**<br>`module.fullbright` | Lifts the brightness floor past the vanilla slider. Lighting only - it cannot show you a block the server did not send. | `Brightness` slider 0–1, default 0.60 |
-| **Zoom**<br>`module.zoom` | Hold the zoom key to narrow your FOV. The same change as moving the FOV slider. | `Factor` slider 1–10, default 4.0<br>`Smooth` toggle, default on |
+| **Brightness**<br>`module.brightness` | The vanilla Brightness slider on a toggle. Tops out where the game does, and restores your own value when switched off. | `Level` slider 0–1, default 1.00 |
+| **Zoom**<br>`module.zoom` | Hold C to narrow your FOV, by moving the vanilla FOV option. Floors at the game's own minimum of 30. | `Factor` slider 1–4, default 2.0 |
 
 ## SMP
 

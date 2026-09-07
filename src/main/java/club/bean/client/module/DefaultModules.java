@@ -15,6 +15,9 @@ import net.minecraft.client.Minecraft;
  * movement exploits and see-through-walls rendering are the features that only
  * pay off by taking something from the other people on the server, and they are
  * not going to appear here.
+ *
+ * <p>It is also why there are no mixins: nothing here needs to reach into the
+ * render or network path.
  */
 public final class DefaultModules {
     private DefaultModules() {
@@ -72,15 +75,15 @@ public final class DefaultModules {
     // ---- Visual - how your own client renders -----------------------------
 
     private static void visual() {
-        module("Fullbright", Category.VISUAL, enabled -> {},
-                        "Lifts the brightness floor past the vanilla slider. Lighting only - it cannot "
-                                + "show you a block the server did not send.")
-                .setting(Setting.slider("Brightness", 0.6, 0.0, 1.0, 2));
+        module("Brightness", Category.VISUAL, enabled -> {},
+                        "The vanilla Brightness slider on a toggle. Tops out where the game does, and "
+                                + "restores your own value when switched off.")
+                .setting(Setting.slider("Level", 1.0, 0.0, 1.0, 2));
 
         module("Zoom", Category.VISUAL, enabled -> {},
-                        "Hold the zoom key to narrow your FOV. The same change as moving the FOV slider.")
-                .setting(Setting.slider("Factor", 4, 1, 10, 1))
-                .setting(Setting.toggle("Smooth", true));
+                        "Hold C to narrow your FOV, by moving the vanilla FOV option. Floors at the "
+                                + "game's own minimum of 30.")
+                .setting(Setting.slider("Factor", 2, 1, 4, 1));
     }
 
     // ---- SMP - server quality of life -------------------------------------

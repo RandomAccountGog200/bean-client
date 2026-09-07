@@ -1,19 +1,29 @@
 package club.bean.client.feature;
 
+import club.bean.client.module.Module;
 import club.bean.client.module.ModuleRegistry;
 import club.bean.client.module.Setting;
+import net.minecraft.client.Minecraft;
 
 /**
- * Hold-to-zoom, the way Optifine does it.
+ * Hold-to-zoom, done by moving the vanilla FOV slider.
  *
- * <p>This narrows your own camera FOV and nothing else. It does not extend
- * render distance, reveal anything the client was not already drawing, or
- * change what the server sends - it is the same class of change as moving the
- * FOV slider.
+ * <p>This is not a render hook — it writes the FOV option while the key is held
+ * and writes the player's own value back when it is released, so the effect is
+ * exactly what they would get by dragging the slider themselves. The trade-off
+ * is that the vanilla minimum of 30 is the floor, so the practical limit is
+ * roughly 2.3x from a default 70 FOV rather than an arbitrary factor.
+ *
+ * <p>Nothing about the camera is hidden from the server, because the server was
+ * never told the FOV in the first place.
  */
 public final class Zoom {
+    private static final int MIN_FOV = 30;
+
+    private static final VanillaOption<Integer> FOV =
+            new VanillaOption<>("FOV", () -> Minecraft.getInstance().options.fov());
+
     private static boolean held;
-    private static float current = 1f;
 
     private Zoom() {
     }
@@ -22,48 +32,41 @@ public final class Zoom {
         held = value;
     }
 
-    public static boolean isEnabled() {
-        var module = ModuleRegistry.get("zoom");
+    private static boolean isEnabled() {
+        Module module = ModuleRegistry.get("zoom");
         return module != null && module.isEnabled();
     }
 
-    private static double factorSetting() {
-        var module = ModuleRegistry.get("zoom");
+    private static double factor() {
+        Module module = ModuleRegistry.get("zoom");
         if (module == null) {
-            return 4;
+            return 2;
         }
         for (Setting setting : module.settings()) {
             if (setting.name().equalsIgnoreCase("Factor")) {
                 return Math.max(1.0, setting.value());
             }
         }
-        return 4;
+        return 2;
     }
 
-    private static boolean smooth() {
-        var module = ModuleRegistry.get("zoom");
-        if (module == null) {
-            return true;
+    /** Called every client tick. */
+    public static void tick() {
+        if (!isEnabled() || !held) {
+            FOV.restore();
+            return;
         }
-        for (Setting setting : module.settings()) {
-            if (setting.name().equalsIgnoreCase("Smooth")) {
-                return setting.boolValue();
-            }
+        Integer base = FOV.baseValue();
+        if (base == null) {
+            return;
         }
-        return true;
+        int target = (int) Math.round(base / factor());
+        FOV.override(Math.max(MIN_FOV, Math.min(base, target)));
     }
 
-    /** Multiplier applied to the camera FOV this frame. 1 means untouched. */
-    public static float factor() {
-        float goal = isEnabled() && held ? (float) (1.0 / factorSetting()) : 1f;
-        if (!smooth()) {
-            current = goal;
-        } else {
-            current += (goal - current) * 0.4f;
-            if (Math.abs(goal - current) < 0.001f) {
-                current = goal;
-            }
-        }
-        return current;
+    /** Drops any override, for when the module is switched off or the world unloads. */
+    public static void reset() {
+        held = false;
+        FOV.restore();
     }
 }
