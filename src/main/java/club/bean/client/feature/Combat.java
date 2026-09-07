@@ -10,7 +10,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * The Combat tab: Killaura, Trigger Bot, Criticals, Auto Clicker and Reach.
@@ -113,7 +112,11 @@ public final class Combat {
             return;
         }
         if (Settings.flag("killaura", "Rotate", true)) {
-            face(player, target);
+            // Degrees per second, converted to a per-tick budget. The old code
+            // wrote the angle straight in, which teleports your head between
+            // headings and looks nothing like a hand on a mouse.
+            float perTick = (float) Settings.number("killaura", "Turn speed", 720) / 20f;
+            Rotations.turnTowards(mc, player, target.getBoundingBox().getCenter(), perTick);
         }
         long delay = (long) Settings.number("killaura", "Delay", 100);
         if (System.currentTimeMillis() - lastAuraAttack < delay) {
@@ -206,16 +209,4 @@ public final class Combat {
         return hit instanceof EntityHitResult entityHit ? entityHit.getEntity() : null;
     }
 
-    /** Points the player at the middle of the entity's box. */
-    private static void face(LocalPlayer player, Entity entity) {
-        Vec3 from = player.getEyePosition();
-        Vec3 to = entity.getBoundingBox().getCenter();
-        double dx = to.x - from.x;
-        double dy = to.y - from.y;
-        double dz = to.z - from.z;
-        double flat = Math.sqrt(dx * dx + dz * dz);
-
-        player.setYRot((float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0));
-        player.setXRot((float) -Math.toDegrees(Math.atan2(dy, flat)));
-    }
 }

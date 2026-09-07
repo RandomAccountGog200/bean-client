@@ -104,6 +104,7 @@ public final class DefaultModules {
                 .setting(Setting.slider("Delay", 100, 0, 1000, 0))
                 .setting(Setting.mode("Targets", "Players", "Mobs", "All"))
                 .setting(Setting.toggle("Rotate", true))
+                .setting(Setting.slider("Turn speed", 720, 20, 720, 0))
                 .setting(Setting.toggle("Wait for cooldown", true));
 
         module("Trigger Bot", Category.COMBAT, enabled -> {},
@@ -138,6 +139,17 @@ public final class DefaultModules {
                 .setting(Setting.toggle("Place", true))
                 .setting(Setting.toggle("Break", true));
 
+        module("Aim Assist", Category.COMBAT, enabled -> {},
+                        "Pulls your crosshair towards a target without ever attacking. You still "
+                                + "click; the turn speed is what decides whether it reads as a nudge "
+                                + "or a lock-on.")
+                .setting(Setting.slider("Turn speed", 180, 20, 720, 0))
+                .setting(Setting.slider("Range", 6, 3, 12, 1))
+                .setting(Setting.slider("FOV", 120, 30, 360, 0))
+                .setting(Setting.mode("Targets", "Players", "Mobs", "All"))
+                .setting(Setting.toggle("Check line of sight", true))
+                .setting(Setting.toggle("While using items", false));
+
         module("Auto Totem", Category.COMBAT, AutoTotem::onToggle,
                         "Moves a totem to your off hand when your health drops, using ordinary "
                                 + "container clicks.")
@@ -169,6 +181,18 @@ public final class DefaultModules {
                         "Damps knockback. 0% takes all of it off that axis.")
                 .setting(Setting.slider("Horizontal", 0, 0, 100, 0))
                 .setting(Setting.slider("Vertical", 100, 0, 100, 0));
+
+        module("Spider", Category.MOVEMENT, enabled -> {},
+                "Climbs walls by holding an upward velocity while you are pushing into one.");
+
+        module("Bunny Hop", Category.MOVEMENT, enabled -> {},
+                        "Jumps for you whenever the chosen condition holds.")
+                .setting(Setting.mode("Jump if", "Sprinting", "Walking", "Always"));
+
+        module("Safe Walk", Category.MOVEMENT, enabled -> {},
+                        "Sneaks automatically at the edge of a drop. Presses the real sneak key, so "
+                                + "others see you sneak exactly as if you had done it yourself.")
+                .setting(Setting.slider("Edge distance", 0.05, 0.05, 0.25, 2));
 
         module("No Fall", Category.MOVEMENT, enabled -> {},
                 "Claims to be on the ground while falling. Fall damage is the server sum, not yours.");

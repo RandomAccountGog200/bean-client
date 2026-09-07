@@ -20,18 +20,18 @@ attribute, a packet the client already sends, or a projection onto the HUD — w
 is a real constraint on what these can do. Reach is the clearest case: it lengthens
 the client raycast, and the server throws the result away.
 
-There are **39 modules** across 7 categories.
+There are **43 modules** across 7 categories.
 
 | Category | Modules | Settings |
 | --- | ---: | ---: |
 | [HUD](#hud) | 13 | 2 |
-| [Combat](#combat) | 7 | 19 |
-| [Movement](#movement) | 6 | 6 |
+| [Combat](#combat) | 8 | 26 |
+| [Movement](#movement) | 9 | 8 |
 | [Render](#render) | 5 | 13 |
 | [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 3 | 1 |
-| **Total** | **39** | **45** |
+| **Total** | **43** | **54** |
 
 ---
 
@@ -61,12 +61,13 @@ _Acts on your behalf. Every one of these is what an anticheat is looking for._
 
 | Module | What it does | Settings |
 | --- | --- | --- |
-| **Killaura**<br>`module.killaura` | Attacks the nearest target on a timer. Rotation is real - your camera turns. | `Range` — slider 3–6, default 4.2<br>`Delay` — slider 0–1000, default 100<br>`Targets` — mode: Players / Mobs / All<br>`Rotate` — toggle, default true<br>`Wait for cooldown` — toggle, default true |
+| **Killaura**<br>`module.killaura` | Attacks the nearest target on a timer. Rotation is real - your camera turns. | `Range` — slider 3–6, default 4.2<br>`Delay` — slider 0–1000, default 100<br>`Targets` — mode: Players / Mobs / All<br>`Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 720<br>`Wait for cooldown` — toggle, default true |
 | **Trigger Bot**<br>`module.trigger_bot` | Attacks whatever your crosshair is already on. You still aim it. | `Delay` — slider 0–1000, default 150<br>`Targets` — mode: All / Players / Mobs |
 | **Criticals**<br>`module.criticals` | Puts the server's copy of you in the air for the instant a hit lands. Packet mode never actually moves you; the jump modes do. | `Mode` — mode: Packet / Mini Jump / Full Jump |
 | **Auto Clicker**<br>`module.auto_clicker` | Clicks at a set rate while you hold the attack button down. | `CPS` — slider 1–20, default 10<br>`Jitter` — toggle, default true |
 | **Reach**<br>`module.reach` | Lengthens the client interaction raycast. The server validates against its own copy, so past vanilla range the attack is simply dropped. | `Extra blocks` — slider 0–3, default 1.0 |
 | **Crystal Aura**<br>`module.crystal_aura` | Places end crystals next to a target and breaks them. Scores every legal position by what the blast would do to them and to you, and acts on the best one that clears both thresholds. | `Range` — slider 3–6, default 4.5<br>`Target range` — slider 4–16, default 12<br>`Min damage` — slider 1–20, default 6<br>`Max self damage` — slider 0–20, default 8<br>`Delay` — slider 0–500, default 50<br>`Place` — toggle, default true<br>`Break` — toggle, default true |
+| **Aim Assist**<br>`module.aim_assist` | Pulls your crosshair towards a target without ever attacking. You still click; the turn speed is what decides whether it reads as a nudge or a lock-on. | `Turn speed` — slider 20–720, default 180<br>`Range` — slider 3–12, default 6<br>`FOV` — slider 30–360, default 120<br>`Targets` — mode: Players / Mobs / All<br>`Check line of sight` — toggle, default true<br>`While using items` — toggle, default false |
 | **Auto Totem**<br>`module.auto_totem` | Moves a totem to your off hand when your health drops, using ordinary container clicks. | `Health` — slider 1–20, default 10 |
 
 ## Movement
@@ -80,6 +81,9 @@ _Changes how you move, and what the server is told about it._
 | **Fly**<br>`module.fly` | Zeroes gravity and drives your motion from the movement keys. | `Speed` — slider 0.1–2.0, default 0.5 |
 | **Speed**<br>`module.speed` | Scales your horizontal motion after vanilla has computed it. | `Multiplier` — slider 1.0–3.0, default 1.4 |
 | **Velocity**<br>`module.velocity` | Damps knockback. 0% takes all of it off that axis. | `Horizontal` — slider 0–100, default 0<br>`Vertical` — slider 0–100, default 100 |
+| **Spider**<br>`module.spider` | Climbs walls by holding an upward velocity while you are pushing into one. | _none_ |
+| **Bunny Hop**<br>`module.bunny_hop` | Jumps for you whenever the chosen condition holds. | `Jump if` — mode: Sprinting / Walking / Always |
+| **Safe Walk**<br>`module.safe_walk` | Sneaks automatically at the edge of a drop. Presses the real sneak key, so others see you sneak exactly as if you had done it yourself. | `Edge distance` — slider 0.05–0.25, default 0.05 |
 | **No Fall**<br>`module.no_fall` | Claims to be on the ground while falling. Fall damage is the server sum, not yours. | _none_ |
 
 ## Render

@@ -1,5 +1,6 @@
 package club.bean.client;
 
+import club.bean.client.feature.AimAssist;
 import club.bean.client.feature.AutoTotem;
 import club.bean.client.feature.Brightness;
 import club.bean.client.feature.ChatFilter;
@@ -7,6 +8,7 @@ import club.bean.client.feature.Combat;
 import club.bean.client.feature.CrystalAura;
 import club.bean.client.feature.FrameLimit;
 import club.bean.client.feature.Movement;
+import club.bean.client.feature.MovementExtras;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
 import club.bean.client.gui.BeanGui;
@@ -102,6 +104,7 @@ public class BeanClient implements ClientModInitializer {
         FrameLimit.reset();
         Combat.reset(mc);
         Movement.reset(mc);
+        MovementExtras.reset(mc);
         Trackers.flushPlaytime();
         BeanConfig.save();
     }
@@ -135,8 +138,10 @@ public class BeanClient implements ClientModInitializer {
             Zoom.tick();
             Brightness.tick();
             Combat.tick(mc);
+            AimAssist.tick(mc);
             CrystalAura.tick(mc);
             Movement.tick(mc);
+            MovementExtras.tick(mc, mc.player);
             AutoTotem.tick(mc);
         }
         Trackers.tick(mc);
