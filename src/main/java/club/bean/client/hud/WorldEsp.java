@@ -1,7 +1,9 @@
 package club.bean.client.hud;
 
+import club.bean.client.feature.BowAimbot;
 import club.bean.client.feature.Combat;
 import club.bean.client.feature.Targets;
+import club.bean.client.feature.Trajectories;
 import club.bean.client.gui.Draw;
 import club.bean.client.module.Settings;
 import club.bean.client.theme.Colours;
@@ -62,8 +64,10 @@ public final class WorldEsp {
         boolean tags = Settings.enabled("name_tags");
         boolean items = Settings.enabled("item_esp");
         boolean radar = Settings.enabled("player_radar");
+        boolean path = Settings.enabled("trajectories");
+        boolean targetHud = Settings.enabled("target_hud");
 
-        if (!esp && !tracers && !tags && !items && !radar) {
+        if (!esp && !tracers && !tags && !items && !radar && !path && !targetHud) {
             return;
         }
         if (mc.player == null || mc.level == null) {
@@ -79,6 +83,12 @@ public final class WorldEsp {
         drawEntities(gfx, mc, font, theme, projection, esp, tracers, tags, items);
         if (radar) {
             drawRadar(gfx, mc, theme);
+        }
+        if (path) {
+            drawTrajectory(gfx, mc, theme, projection);
+        }
+        if (targetHud) {
+            drawTargetHud(gfx, mc, font, theme);
         }
     }
 
@@ -267,6 +277,95 @@ public final class WorldEsp {
             double px = cx + rx / range * reach;
             double py = cy - rz / range * reach;
             Draw.circle(gfx, px, py, 1.8, colourFor(theme, living));
+        }
+    }
+
+    // ---- trajectory --------------------------------------------------------
+
+    /**
+     * The predicted flight path, drawn as a chain of short segments.
+     *
+     * <p>Each pair of simulated points becomes one rotated bar. Points behind
+     * the camera project to nothing and simply break the chain, which is the
+     * right behaviour - a line drawn to a point behind you would sweep across
+     * the screen.
+     */
+    private static void drawTrajectory(GuiGraphicsExtractor gfx, Minecraft mc, Theme theme,
+                                       Projection projection) {
+        Trajectories.Path path = Trajectories.predict(mc);
+        if (path == null || path.points().size() < 2) {
+            return;
+        }
+        int colour = switch (path.ending()) {
+            case ENTITY -> HURT;
+            case BLOCK -> theme.accent;
+            default -> Colours.withAlpha(theme.textDim, 160);
+        };
+
+        float[] previous = null;
+        for (Vec3 point : path.points()) {
+            float[] screen = projection.project(point);
+            if (screen == null) {
+                previous = null;
+                continue;
+            }
+            if (previous != null) {
+                double dx = screen[0] - previous[0];
+                double dy = screen[1] - previous[1];
+                double length = Math.sqrt(dx * dx + dy * dy);
+                if (length >= 0.5) {
+                    Draw.bar(gfx, (previous[0] + screen[0]) / 2, (previous[1] + screen[1]) / 2,
+                            length, 1.4, Math.toDegrees(Math.atan2(dy, dx)), colour);
+                }
+            }
+            previous = screen;
+        }
+        // Mark where it lands.
+        float[] end = projection.project(path.points().get(path.points().size() - 1));
+        if (end != null) {
+            Draw.ring(gfx, end[0], end[1], 4, 2.4, colour);
+        }
+    }
+
+    // ---- target panel --------------------------------------------------------
+
+    /**
+     * A readout for whatever the combat modules are currently pointed at.
+     *
+     * <p>Deliberately reads their chosen target rather than picking one of its
+     * own, so it shows what will actually be hit rather than a second opinion.
+     */
+    private static void drawTargetHud(GuiGraphicsExtractor gfx, Minecraft mc, Font font,
+                                      Theme theme) {
+        LivingEntity target = Combat.target();
+        if (target == null) {
+            target = BowAimbot.target();
+        }
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        String name = target.getName().getString();
+        float health = target.getHealth();
+        float max = Math.max(1f, target.getMaxHealth());
+        String stats = String.format("%.0f / %.0f", Math.ceil(health), max);
+
+        int width = Math.max(96, Math.max(font.width(name), font.width(stats)) + 20);
+        int height = 40;
+        int x = (gfx.guiWidth() - width) / 2;
+        int y = gfx.guiHeight() / 2 + 30;
+
+        Draw.roundRect(gfx, x, y, width, height, Math.max(2, theme.cornerRadius - 2),
+                Colours.withAlpha(theme.background, 190));
+        Draw.text(gfx, font, name, x + 8, y + 6, theme.text);
+        Draw.textRight(gfx, font, stats, x + width - 8, y + 6, theme.textDim);
+
+        // Health bar, tinted the same green-to-red as the ESP boxes.
+        double fraction = Math.max(0, Math.min(1, health / max));
+        Draw.roundRect(gfx, x + 8, y + 22, width - 16, 6, 3,
+                Colours.withAlpha(theme.panelAlt, 220));
+        if (fraction > 0) {
+            Draw.roundRect(gfx, x + 8, y + 22, (width - 16) * fraction, 6, 3,
+                    Colours.mix(HURT, HEALTHY, (float) fraction));
         }
     }
 

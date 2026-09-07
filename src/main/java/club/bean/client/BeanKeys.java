@@ -18,6 +18,7 @@ public final class BeanKeys {
 
     public static KeyMapping openMenu;
     public static KeyMapping zoom;
+    public static KeyMapping pearl;
 
     private BeanKeys() {
     }
@@ -25,6 +26,7 @@ public final class BeanKeys {
     public static void register() {
         openMenu = bind("key.beanclient.menu", GLFW.GLFW_KEY_RIGHT_SHIFT);
         zoom = bind("key.beanclient.zoom", GLFW.GLFW_KEY_C);
+        pearl = bind("key.beanclient.pearl", GLFW.GLFW_KEY_R);
     }
 
     private static KeyMapping bind(String translation, int key) {

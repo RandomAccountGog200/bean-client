@@ -1,5 +1,6 @@
 {
   "key.category.beanclient.main": "Bean Client",
   "key.beanclient.menu": "Open Bean Client GUI",
-  "key.beanclient.zoom": "Zoom (hold)"
+  "key.beanclient.zoom": "Zoom (hold)",
+  "key.beanclient.pearl": "Throw ender pearl"
 }

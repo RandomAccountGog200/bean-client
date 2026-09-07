@@ -2,6 +2,7 @@ package club.bean.client;
 
 import club.bean.client.feature.AimAssist;
 import club.bean.client.feature.AutoArmor;
+import club.bean.client.feature.BowAimbot;
 import club.bean.client.feature.AutoEat;
 import club.bean.client.feature.AutoTool;
 import club.bean.client.feature.AutoTotem;
@@ -14,6 +15,7 @@ import club.bean.client.feature.FrameLimit;
 import club.bean.client.feature.Movement;
 import club.bean.client.feature.MovementExtras;
 import club.bean.client.feature.Nuker;
+import club.bean.client.feature.PearlThrow;
 import club.bean.client.feature.Scaffold;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
@@ -146,6 +148,7 @@ public class BeanClient implements ClientModInitializer {
             Brightness.tick();
             Combat.tick(mc);
             AimAssist.tick(mc);
+            BowAimbot.tick(mc);
             CrystalAura.tick(mc);
             Movement.tick(mc);
             MovementExtras.tick(mc, mc.player);
@@ -156,6 +159,7 @@ public class BeanClient implements ClientModInitializer {
             ChestStealer.tick(mc);
             Scaffold.tick(mc);
             Nuker.tick(mc);
+            PearlThrow.tick(mc);
         }
         Trackers.tick(mc);
         BeanConfig.flush();

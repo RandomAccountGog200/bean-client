@@ -151,6 +151,13 @@ public final class DefaultModules {
                 .setting(Setting.toggle("Check line of sight", true))
                 .setting(Setting.toggle("While using items", false));
 
+        module("Bow Aimbot", Category.COMBAT, enabled -> {},
+                        "Solves the launch angle for a bow or crossbow, allowing for drop and for "
+                                + "where the target is heading. Only aims while drawn or loaded.")
+                .setting(Setting.slider("Range", 64, 8, 128, 0))
+                .setting(Setting.slider("Predict movement", 0.1, 0, 1.0, 2))
+                .setting(Setting.mode("Targets", "Players", "Mobs", "All"));
+
         module("Auto Totem", Category.COMBAT, AutoTotem::onToggle,
                         "Moves a totem to your off hand when your health drops, using ordinary "
                                 + "container clicks.")
@@ -195,6 +202,17 @@ public final class DefaultModules {
                                 + "others see you sneak exactly as if you had done it yourself.")
                 .setting(Setting.slider("Edge distance", 0.05, 0.05, 0.25, 2));
 
+        module("Jesus", Category.MOVEMENT, enabled -> {},
+                        "Holds you at the surface of water and lava. Bob floats; Walk hops you back "
+                                + "out each time you sink in.")
+                .setting(Setting.mode("Mode", "Walk", "Bob"));
+
+        module("Elytra Fly", Category.MOVEMENT, enabled -> {},
+                        "Flies an elytra at a constant speed, optionally without losing height. "
+                                + "Only while you are already gliding.")
+                .setting(Setting.slider("Speed", 1.2, 0.5, 3.0, 1))
+                .setting(Setting.toggle("Hold altitude", true));
+
         module("No Fall", Category.MOVEMENT, enabled -> {},
                 "Claims to be on the ground while falling. Fall damage is the server sum, not yours.");
     }
@@ -219,6 +237,12 @@ public final class DefaultModules {
                 .setting(Setting.slider("Range", 48, 8, 128, 0))
                 .setting(Setting.toggle("Show health", true))
                 .setting(Setting.toggle("Show distance", true));
+
+        module("Trajectories", Category.RENDER, enabled -> {},
+                "Simulates where a thrown item will land and draws the path, marking the impact.");
+
+        module("Target HUD", Category.RENDER, enabled -> {},
+                "A panel for whatever the combat modules are aimed at, with a health bar.");
 
         module("Item ESP", Category.RENDER, enabled -> {},
                         "Labels dropped items with their name and stack size.")
@@ -258,6 +282,9 @@ public final class DefaultModules {
                         "Places a full block under your feet as you walk off an edge.")
                 .setting(Setting.toggle("Rotate", true))
                 .setting(Setting.slider("Turn speed", 360, 20, 720, 0));
+
+        module("Pearl Key", Category.PLAYER, enabled -> {},
+                "Throws an ender pearl on a keypress (R by default) and puts your item back.");
 
         module("Nuker", Category.PLAYER, enabled -> {},
                         "Breaks every block in range, nearest first. One block per tick, because "

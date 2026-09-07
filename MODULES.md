@@ -20,19 +20,19 @@ attribute, a packet the client already sends, or a projection onto the HUD — w
 is a real constraint on what these can do. Reach is the clearest case: it lengthens
 the client raycast, and the server throws the result away.
 
-There are **49 modules** across 8 categories.
+There are **55 modules** across 8 categories.
 
 | Category | Modules | Settings |
 | --- | ---: | ---: |
 | [HUD](#hud) | 13 | 2 |
-| [Combat](#combat) | 8 | 26 |
-| [Movement](#movement) | 9 | 8 |
-| [Render](#render) | 5 | 13 |
-| [Player](#player) | 6 | 11 |
+| [Combat](#combat) | 9 | 29 |
+| [Movement](#movement) | 11 | 11 |
+| [Render](#render) | 7 | 13 |
+| [Player](#player) | 7 | 11 |
 | [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 3 | 1 |
-| **Total** | **49** | **65** |
+| **Total** | **55** | **71** |
 
 ---
 
@@ -69,6 +69,7 @@ _Acts on your behalf. Every one of these is what an anticheat is looking for._
 | **Reach**<br>`module.reach` | Lengthens the client interaction raycast. The server validates against its own copy, so past vanilla range the attack is simply dropped. | `Extra blocks` — slider 0–3, default 1.0 |
 | **Crystal Aura**<br>`module.crystal_aura` | Places end crystals next to a target and breaks them. Scores every legal position by what the blast would do to them and to you, and acts on the best one that clears both thresholds. | `Range` — slider 3–6, default 4.5<br>`Target range` — slider 4–16, default 12<br>`Min damage` — slider 1–20, default 6<br>`Max self damage` — slider 0–20, default 8<br>`Delay` — slider 0–500, default 50<br>`Place` — toggle, default true<br>`Break` — toggle, default true |
 | **Aim Assist**<br>`module.aim_assist` | Pulls your crosshair towards a target without ever attacking. You still click; the turn speed is what decides whether it reads as a nudge or a lock-on. | `Turn speed` — slider 20–720, default 180<br>`Range` — slider 3–12, default 6<br>`FOV` — slider 30–360, default 120<br>`Targets` — mode: Players / Mobs / All<br>`Check line of sight` — toggle, default true<br>`While using items` — toggle, default false |
+| **Bow Aimbot**<br>`module.bow_aimbot` | Solves the launch angle for a bow or crossbow, allowing for drop and for where the target is heading. Only aims while drawn or loaded. | `Range` — slider 8–128, default 64<br>`Predict movement` — slider 0–1.0, default 0.1<br>`Targets` — mode: Players / Mobs / All |
 | **Auto Totem**<br>`module.auto_totem` | Moves a totem to your off hand when your health drops, using ordinary container clicks. | `Health` — slider 1–20, default 10 |
 
 ## Movement
@@ -85,6 +86,8 @@ _Changes how you move, and what the server is told about it._
 | **Spider**<br>`module.spider` | Climbs walls by holding an upward velocity while you are pushing into one. | _none_ |
 | **Bunny Hop**<br>`module.bunny_hop` | Jumps for you whenever the chosen condition holds. | `Jump if` — mode: Sprinting / Walking / Always |
 | **Safe Walk**<br>`module.safe_walk` | Sneaks automatically at the edge of a drop. Presses the real sneak key, so others see you sneak exactly as if you had done it yourself. | `Edge distance` — slider 0.05–0.25, default 0.05 |
+| **Jesus**<br>`module.jesus` | Holds you at the surface of water and lava. Bob floats; Walk hops you back out each time you sink in. | `Mode` — mode: Walk / Bob |
+| **Elytra Fly**<br>`module.elytra_fly` | Flies an elytra at a constant speed, optionally without losing height. Only while you are already gliding. | `Speed` — slider 0.5–3.0, default 1.2<br>`Hold altitude` — toggle, default true |
 | **No Fall**<br>`module.no_fall` | Claims to be on the ground while falling. Fall damage is the server sum, not yours. | _none_ |
 
 ## Render
@@ -96,6 +99,8 @@ _Draws what the client knew but had decided not to show you._
 | **ESP**<br>`module.esp` | Boxes around entities, projected onto the HUD. | `Targets` — mode: Players / Mobs / All<br>`Range` — slider 8–128, default 64<br>`Fill` — toggle, default false |
 | **Tracers**<br>`module.tracers` | Lines from the bottom of the screen to each target. | `Targets` — mode: Players / Mobs / All<br>`Range` — slider 8–128, default 64 |
 | **Name Tags**<br>`module.name_tags` | Names, health and distance above every entity, through walls. | `Targets` — mode: All / Players / Mobs<br>`Range` — slider 8–128, default 48<br>`Show health` — toggle, default true<br>`Show distance` — toggle, default true |
+| **Trajectories**<br>`module.trajectories` | Simulates where a thrown item will land and draws the path, marking the impact. | _none_ |
+| **Target HUD**<br>`module.target_hud` | A panel for whatever the combat modules are aimed at, with a health bar. | _none_ |
 | **Item ESP**<br>`module.item_esp` | Labels dropped items with their name and stack size. | `Range` — slider 8–64, default 32 |
 | **Player Radar**<br>`module.player_radar` | A top-down radar, rotated so your facing is up. Shares the bottom-right corner with the Effects HUD. | `Targets` — mode: Players / Mobs / All<br>`Range` — slider 16–128, default 64<br>`Size` — slider 60–160, default 100 |
 
@@ -110,6 +115,7 @@ __
 | **Auto Armor**<br>`module.auto_armor` | Wears the best armour you are carrying, scored from the armour and toughness its attribute modifiers grant. | _none_ |
 | **Chest Stealer**<br>`module.chest_stealer` | Empties an open container into your inventory, one shift-click at a time. | `Items per second` — slider 1–20, default 8<br>`Close when empty` — toggle, default true |
 | **Scaffold**<br>`module.scaffold` | Places a full block under your feet as you walk off an edge. | `Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 360 |
+| **Pearl Key**<br>`module.pearl_key` | Throws an ender pearl on a keypress (R by default) and puts your item back. | _none_ |
 | **Nuker**<br>`module.nuker` | Breaks every block in range, nearest first. One block per tick, because that is how vanilla breaking accumulates damage. | `Range` — slider 1–6, default 4<br>`Auto tool` — toggle, default true<br>`Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 360 |
 
 ## Visual
