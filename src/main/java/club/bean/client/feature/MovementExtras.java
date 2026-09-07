@@ -53,6 +53,7 @@ public final class MovementExtras {
         safeWalk(mc, player);
         jesus(mc, player);
         elytraFly(player);
+        boatFly(player);
     }
 
     public static void reset(Minecraft mc) {
@@ -141,6 +142,34 @@ public final class MovementExtras {
         }
     }
 
+    /**
+     * Flies a boat.
+     *
+     * <p>No mixin needed: a vehicle's motion is writable like any entity's, so
+     * this sets the boat's velocity from where you are looking. The boat is
+     * what moves, and you move because you are sitting in it.
+     */
+    private static void boatFly(LocalPlayer player) {
+        if (!Settings.enabled("boat_fly")) {
+            return;
+        }
+        var vehicle = player.getVehicle();
+        if (vehicle == null) {
+            return;
+        }
+        double speed = Settings.number("boat_fly", "Speed", 1.0);
+        Vec3 look = Rotations.current(player).toLookVec();
+        boolean forward = player.input != null && player.input.keyPresses.forward();
+
+        if (forward) {
+            vehicle.setDeltaMovement(look.x * speed, look.y * speed, look.z * speed);
+        } else {
+            // Hover rather than sink when no input is given.
+            Vec3 velocity = vehicle.getDeltaMovement();
+            vehicle.setDeltaMovement(velocity.x, 0, velocity.z);
+        }
+    }
+
     /** Jumps automatically whenever the chosen condition holds. */
     private static void bunnyHop(LocalPlayer player) {
         if (!Settings.enabled("bunny_hop") || !player.onGround() || player.isShiftKeyDown()) {
@@ -172,6 +201,13 @@ public final class MovementExtras {
      * nothing under you and it is time to sneak.
      */
     private static void safeWalk(Minecraft mc, LocalPlayer player) {
+        // The default path is now a mixin on the player's own edge test, which
+        // needs no key pressing at all. This branch is only the opt-in mode
+        // that sneaks visibly.
+        if (!Settings.flag("safe_walk", "Visible sneak", false)) {
+            releaseSneak(mc);
+            return;
+        }
         if (!Settings.enabled("safe_walk") || !player.onGround()) {
             releaseSneak(mc);
             return;

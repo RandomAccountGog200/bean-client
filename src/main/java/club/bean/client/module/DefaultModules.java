@@ -4,6 +4,7 @@ import club.bean.client.feature.AutoTotem;
 import club.bean.client.feature.Brightness;
 import club.bean.client.feature.ChatFilter;
 import club.bean.client.feature.Combat;
+import club.bean.client.feature.XRay;
 import club.bean.client.feature.FrameLimit;
 import club.bean.client.feature.Movement;
 import club.bean.client.feature.Trackers;
@@ -198,9 +199,22 @@ public final class DefaultModules {
                 .setting(Setting.mode("Jump if", "Sprinting", "Walking", "Always"));
 
         module("Safe Walk", Category.MOVEMENT, enabled -> {},
-                        "Sneaks automatically at the edge of a drop. Presses the real sneak key, so "
-                                + "others see you sneak exactly as if you had done it yourself.")
+                        "Stops you walking off edges. By default it overrides the check vanilla "
+                                + "only applies while sneaking; Visible sneak instead presses the "
+                                + "real key, which others can see.")
+                .setting(Setting.toggle("Visible sneak", false))
                 .setting(Setting.slider("Edge distance", 0.05, 0.05, 0.25, 2));
+
+        module("No Slow", Category.MOVEMENT, enabled -> {},
+                "Removes the movement penalty for eating, drawing a bow or holding a shield.");
+
+        module("Phase", Category.MOVEMENT, enabled -> {},
+                "Turns off collision. The server runs its own and will pull you back out of "
+                        + "walls; dropping through floors is what this actually gets you.");
+
+        module("Boat Fly", Category.MOVEMENT, enabled -> {},
+                        "Flies whatever you are riding, by writing the vehicle's own motion.")
+                .setting(Setting.slider("Speed", 1.0, 0.2, 3.0, 1));
 
         module("Jesus", Category.MOVEMENT, enabled -> {},
                         "Holds you at the surface of water and lava. Bob floats; Walk hops you back "
@@ -244,6 +258,15 @@ public final class DefaultModules {
         module("Target HUD", Category.RENDER, enabled -> {},
                 "A panel for whatever the combat modules are aimed at, with a health bar.");
 
+        module("X-Ray", Category.RENDER, XRay::onToggle,
+                "Draws only ores and containers, and hides everything else. Toggling rebuilds "
+                        + "the loaded chunks, which is what makes the change appear at once.");
+
+        module("Freecam", Category.RENDER, enabled -> {},
+                        "Detaches the camera. Your body stays where it is, keeps taking damage, "
+                                + "and stays visible to everyone else.")
+                .setting(Setting.slider("Speed", 1.0, 0.2, 4.0, 1));
+
         module("Item ESP", Category.RENDER, enabled -> {},
                         "Labels dropped items with their name and stack size.")
                 .setting(Setting.slider("Range", 32, 8, 64, 0));
@@ -283,6 +306,20 @@ public final class DefaultModules {
                 .setting(Setting.toggle("Rotate", true))
                 .setting(Setting.slider("Turn speed", 360, 20, 720, 0));
 
+        module("Fast Place", Category.PLAYER, enabled -> {},
+                "Removes the delay vanilla puts between block placements.");
+
+        module("Fast Break", Category.PLAYER, enabled -> {},
+                "Removes the delay vanilla puts between finishing one block and starting the next.");
+
+        module("Inventory Move", Category.PLAYER, enabled -> {},
+                "Keeps the movement keys working while a screen is open. Chat is excluded, so "
+                        + "typing still types.");
+
+        module("Blink", Category.PLAYER, enabled -> {},
+                "Holds your position updates while it is on, then releases them all at once. "
+                        + "Only movement packets are held.");
+
         module("Pearl Key", Category.PLAYER, enabled -> {},
                 "Throws an ender pearl on a keypress (R by default) and puts your item back.");
 
@@ -309,6 +346,10 @@ public final class DefaultModules {
                         "The vanilla Brightness slider on a toggle. Tops out where the game does, and "
                                 + "restores your own value when switched off.")
                 .setting(Setting.slider("Level", 1.0, 0.0, 1.0, 2));
+
+        module("Fullbright", Category.VISUAL, enabled -> {},
+                "The real one: every light level reports as maximum, so an unlit cave renders "
+                        + "as daylight. Brightness only moves the vanilla slider.");
 
         module("Zoom", Category.VISUAL, enabled -> {
                             if (!enabled) {

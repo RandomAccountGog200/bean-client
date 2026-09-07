@@ -20,19 +20,19 @@ attribute, a packet the client already sends, or a projection onto the HUD — w
 is a real constraint on what these can do. Reach is the clearest case: it lengthens
 the client raycast, and the server throws the result away.
 
-There are **55 modules** across 8 categories.
+There are **65 modules** across 8 categories.
 
 | Category | Modules | Settings |
 | --- | ---: | ---: |
 | [HUD](#hud) | 13 | 2 |
 | [Combat](#combat) | 9 | 29 |
-| [Movement](#movement) | 11 | 11 |
-| [Render](#render) | 7 | 13 |
-| [Player](#player) | 7 | 11 |
-| [Visual](#visual) | 2 | 2 |
+| [Movement](#movement) | 14 | 13 |
+| [Render](#render) | 9 | 14 |
+| [Player](#player) | 11 | 11 |
+| [Visual](#visual) | 3 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 3 | 1 |
-| **Total** | **55** | **71** |
+| **Total** | **65** | **74** |
 
 ---
 
@@ -85,7 +85,10 @@ _Changes how you move, and what the server is told about it._
 | **Velocity**<br>`module.velocity` | Damps knockback. 0% takes all of it off that axis. | `Horizontal` — slider 0–100, default 0<br>`Vertical` — slider 0–100, default 100 |
 | **Spider**<br>`module.spider` | Climbs walls by holding an upward velocity while you are pushing into one. | _none_ |
 | **Bunny Hop**<br>`module.bunny_hop` | Jumps for you whenever the chosen condition holds. | `Jump if` — mode: Sprinting / Walking / Always |
-| **Safe Walk**<br>`module.safe_walk` | Sneaks automatically at the edge of a drop. Presses the real sneak key, so others see you sneak exactly as if you had done it yourself. | `Edge distance` — slider 0.05–0.25, default 0.05 |
+| **Safe Walk**<br>`module.safe_walk` | Stops you walking off edges. By default it overrides the check vanilla only applies while sneaking; Visible sneak instead presses the real key, which others can see. | `Visible sneak` — toggle, default false<br>`Edge distance` — slider 0.05–0.25, default 0.05 |
+| **No Slow**<br>`module.no_slow` | Removes the movement penalty for eating, drawing a bow or holding a shield. | _none_ |
+| **Phase**<br>`module.phase` | Turns off collision. The server runs its own and will pull you back out of walls; dropping through floors is what this actually gets you. | _none_ |
+| **Boat Fly**<br>`module.boat_fly` | Flies whatever you are riding, by writing the vehicle's own motion. | `Speed` — slider 0.2–3.0, default 1.0 |
 | **Jesus**<br>`module.jesus` | Holds you at the surface of water and lava. Bob floats; Walk hops you back out each time you sink in. | `Mode` — mode: Walk / Bob |
 | **Elytra Fly**<br>`module.elytra_fly` | Flies an elytra at a constant speed, optionally without losing height. Only while you are already gliding. | `Speed` — slider 0.5–3.0, default 1.2<br>`Hold altitude` — toggle, default true |
 | **No Fall**<br>`module.no_fall` | Claims to be on the ground while falling. Fall damage is the server sum, not yours. | _none_ |
@@ -101,6 +104,8 @@ _Draws what the client knew but had decided not to show you._
 | **Name Tags**<br>`module.name_tags` | Names, health and distance above every entity, through walls. | `Targets` — mode: All / Players / Mobs<br>`Range` — slider 8–128, default 48<br>`Show health` — toggle, default true<br>`Show distance` — toggle, default true |
 | **Trajectories**<br>`module.trajectories` | Simulates where a thrown item will land and draws the path, marking the impact. | _none_ |
 | **Target HUD**<br>`module.target_hud` | A panel for whatever the combat modules are aimed at, with a health bar. | _none_ |
+| **X-Ray**<br>`module.x_ray` | Draws only ores and containers, and hides everything else. Toggling rebuilds the loaded chunks, which is what makes the change appear at once. | _none_ |
+| **Freecam**<br>`module.freecam` | Detaches the camera. Your body stays where it is, keeps taking damage, and stays visible to everyone else. | `Speed` — slider 0.2–4.0, default 1.0 |
 | **Item ESP**<br>`module.item_esp` | Labels dropped items with their name and stack size. | `Range` — slider 8–64, default 32 |
 | **Player Radar**<br>`module.player_radar` | A top-down radar, rotated so your facing is up. Shares the bottom-right corner with the Effects HUD. | `Targets` — mode: Players / Mobs / All<br>`Range` — slider 16–128, default 64<br>`Size` — slider 60–160, default 100 |
 
@@ -115,6 +120,10 @@ __
 | **Auto Armor**<br>`module.auto_armor` | Wears the best armour you are carrying, scored from the armour and toughness its attribute modifiers grant. | _none_ |
 | **Chest Stealer**<br>`module.chest_stealer` | Empties an open container into your inventory, one shift-click at a time. | `Items per second` — slider 1–20, default 8<br>`Close when empty` — toggle, default true |
 | **Scaffold**<br>`module.scaffold` | Places a full block under your feet as you walk off an edge. | `Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 360 |
+| **Fast Place**<br>`module.fast_place` | Removes the delay vanilla puts between block placements. | _none_ |
+| **Fast Break**<br>`module.fast_break` | Removes the delay vanilla puts between finishing one block and starting the next. | _none_ |
+| **Inventory Move**<br>`module.inventory_move` | Keeps the movement keys working while a screen is open. Chat is excluded, so typing still types. | _none_ |
+| **Blink**<br>`module.blink` | Holds your position updates while it is on, then releases them all at once. Only movement packets are held. | _none_ |
 | **Pearl Key**<br>`module.pearl_key` | Throws an ender pearl on a keypress (R by default) and puts your item back. | _none_ |
 | **Nuker**<br>`module.nuker` | Breaks every block in range, nearest first. One block per tick, because that is how vanilla breaking accumulates damage. | `Range` — slider 1–6, default 4<br>`Auto tool` — toggle, default true<br>`Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 360 |
 
@@ -125,6 +134,7 @@ _How your own client renders._
 | Module | What it does | Settings |
 | --- | --- | --- |
 | **Brightness**<br>`module.brightness` | The vanilla Brightness slider on a toggle. Tops out where the game does, and restores your own value when switched off. | `Level` — slider 0.0–1.0, default 1.0 |
+| **Fullbright**<br>`module.fullbright` | The real one: every light level reports as maximum, so an unlit cave renders as daylight. Brightness only moves the vanilla slider. | _none_ |
 | **Zoom**<br>`module.zoom` | Hold C to narrow your FOV, by moving the vanilla FOV option. Floors at the game's own minimum of 30. | `Factor` — slider 1–4, default 2 |
 
 ## SMP

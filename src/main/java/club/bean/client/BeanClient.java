@@ -2,11 +2,15 @@ package club.bean.client;
 
 import club.bean.client.feature.AimAssist;
 import club.bean.client.feature.AutoArmor;
+import club.bean.client.feature.Blink;
 import club.bean.client.feature.BowAimbot;
 import club.bean.client.feature.AutoEat;
 import club.bean.client.feature.AutoTool;
 import club.bean.client.feature.AutoTotem;
 import club.bean.client.feature.ChestStealer;
+import club.bean.client.feature.FastAction;
+import club.bean.client.feature.Freecam;
+import club.bean.client.feature.InventoryMove;
 import club.bean.client.feature.Brightness;
 import club.bean.client.feature.ChatFilter;
 import club.bean.client.feature.Combat;
@@ -16,6 +20,7 @@ import club.bean.client.feature.Movement;
 import club.bean.client.feature.MovementExtras;
 import club.bean.client.feature.Nuker;
 import club.bean.client.feature.PearlThrow;
+import club.bean.client.feature.Phase;
 import club.bean.client.feature.Scaffold;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
@@ -114,6 +119,8 @@ public class BeanClient implements ClientModInitializer {
         Movement.reset(mc);
         MovementExtras.reset(mc);
         AutoEat.stop(mc);
+        Phase.reset(mc);
+        Blink.release(mc);
         Trackers.flushPlaytime();
         BeanConfig.save();
     }
@@ -142,6 +149,8 @@ public class BeanClient implements ClientModInitializer {
             Brightness.reset();
             Combat.reset(mc);
             Movement.reset(mc);
+            Phase.reset(mc);
+            Blink.release(mc);
         } else {
             Zoom.setHeld(BeanKeys.zoom.isDown());
             Zoom.tick();
@@ -160,6 +169,10 @@ public class BeanClient implements ClientModInitializer {
             Scaffold.tick(mc);
             Nuker.tick(mc);
             PearlThrow.tick(mc);
+            Phase.tick(mc);
+            Freecam.tick(mc);
+            Blink.tick(mc);
+            FastAction.tick(mc);
         }
         Trackers.tick(mc);
         BeanConfig.flush();

@@ -3,98 +3,97 @@
 Status of the requested module list. Ported files carry a header naming the
 upstream class; see [NOTICE.md](NOTICE.md).
 
-**The headline finding:** roughly a third of the list cannot be done as things
-stand, because it needs **mixins** — and this project has deliberately never had
-any. Everything so far has gone through a public API: an entity attribute, a
-packet the client already sends, or a projection onto the HUD. That constraint
-bought a lot (no mappings, no remap step, nothing to break on a Minecraft
-update) but it has now been reached. Adding mixin support is a real
-architectural decision, not a detail, so it is flagged here rather than taken
-quietly.
+**Everything asked for is in, except the three that were declined or are not
+ports.** The list ran to 45 entries; 42 of them now exist.
 
-Legend: **done** · **partial** · **todo** (portable, not yet done) ·
-**mixin** (blocked on the above) · **declined** · **n/a**
+Adding mixins was the decision that unblocked the last third. It was made
+reluctantly and the cost is real: every mixin anchors to a vanilla method, so a
+Minecraft update can now stop the client launching rather than merely making a
+module stop working. All eleven target whole methods rather than instructions
+inside them, which is the safer end of that trade.
 
 ## Combat
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| KillAura / Forcefield | done | Original. Now turns via Wurst's rotation maths instead of snapping. |
-| AutoCrystal | done | Original, as **Crystal Aura**. Placement rules and damage model from vanilla. |
-| AimAssist / Aimbot | **done** | Ported from `AimAssistHack`. |
-| Triggerbot | done | Original. |
-| Velocity / Anti-Knockback | done | Original, damps knockback after a hit. Upstream's packet-level version is better and needs a mixin. |
-| Reach | done | Original, via the interaction-range attribute. The server validates against its own copy, so it changes what you can aim at, not what lands. |
-| Criticals | **done** | Ported from `CriticalsHack`. Replaced a two-packet version that never worked. |
-| AutoTotem | done | Original, via container clicks. |
-| BowAimbot | todo | Portable — needs projectile trajectory maths. |
-| TargetHUD | todo | Portable — 2D, same path as the existing HUD. |
+| KillAura / Forcefield | done | Turns via Wurst's rotation maths rather than snapping. |
+| AutoCrystal | done | As **Crystal Aura**. Placement rules and damage model from vanilla. |
+| AimAssist / Aimbot | done | Ported from `AimAssistHack`. |
+| Triggerbot | done | |
+| Velocity / Anti-Knockback | done | Damps knockback after a hit. |
+| Reach | done | Via the interaction-range attribute; the server validates against its own copy. |
+| Criticals | done | Ported from `CriticalsHack`. |
+| AutoTotem | done | Container clicks. |
+| BowAimbot | done | Ported. Solves the launch angle for drop and target movement. |
+| TargetHUD | done | Reads whatever the combat modules already chose. |
 
 ## Movement
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| Fly / Flight | done | Original. Upstream's is far richer (622 lines, several modes) and worth revisiting. |
-| Speed | done | Original. Now clamps to a ceiling instead of compounding. |
-| BHop | **done** | Ported from `BunnyHopHack`. |
-| Jesus / WaterWalk | todo | Upstream is 308 lines; the solid-water mode needs a mixin, the motion mode does not. |
-| NoFall | done | Original. Tells the server you are grounded; it does not stop the damage, it changes the sum. |
-| Step | **done** | Ported from `StepHack` as **Legit** mode; the attribute version is kept as **Simple**. |
-| Spider | **done** | Ported from `SpiderHack`. |
-| NoSlow | **mixin** | Needs the movement-slowdown multiplier. |
-| SafeWalk | **partial** | Ported the "sneak at edges" behaviour. The better mode — not walking off without visibly sneaking — overrides `isStayingOnGroundSurface` and needs a mixin. |
-| Phase / VClip | mixin | Needs collision to be bypassed. |
-| ElytraFly | todo | Portable. |
-| BoatFly | mixin | Needs the boat's physics. |
+| Fly / Flight | done | |
+| Speed | done | Clamps to a ceiling rather than compounding. |
+| BHop | done | Ported from `BunnyHopHack`. |
+| Jesus / WaterWalk | done | Ported. Bob and Walk modes. |
+| NoFall | done | |
+| Step | done | Ported from `StepHack` as **Legit**; attribute version kept as **Simple**. |
+| Spider | done | Ported from `SpiderHack`. |
+| NoSlow | done | Mixin on the item-use speed multiplier. |
+| SafeWalk | done | Mixin on the player's own edge test; **Visible sneak** keeps the old key-pressing mode. |
+| Phase / VClip | done | No mixin needed - `noPhysics` is a public field. |
+| ElytraFly | done | Ported. |
+| BoatFly | done | No mixin needed - a vehicle's motion is writable. |
 
 ## Render & visual
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| ESP | done | Original. Projects to the HUD rather than drawing in the world — 26.2 removed the world-render hooks. |
-| Tracers | done | Original. |
-| Nametags | done | Original, with health and distance. |
-| Trajectories | todo | Portable — the existing projection already does the hard part. |
-| Fullbright | **partial** | **Brightness** drives the vanilla gamma option, which caps where the game does. A true fullbright needs the lightmap. |
-| X-Ray | **mixin** | Needs block-face culling and a chunk rebuild. |
-| Freecam | **mixin** | Needs to detach the camera. |
+| ESP | done | Projects to the HUD; 26.2 removed the world-render hooks. |
+| Tracers | done | |
+| Nametags | done | With health and distance. |
+| Trajectories | done | Ported. Simulated, then projected onto the HUD. |
+| Fullbright | done | Mixin on the lightmap. **Brightness** remains the vanilla-capped version. |
+| X-Ray | done | Mixin on face culling, plus a chunk rebuild on toggle. |
+| Freecam | done | Mixin at the tail of the camera update. |
 
 ## Player & utility
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| ChestStealer / AutoLoot | todo | Portable — same container-click path as AutoTotem. |
-| AutoTool | todo | Portable. |
-| AutoEat | todo | Portable. |
-| AutoArmor | todo | Portable. |
-| Scaffold | todo | Portable — needs upstream's `BlockPlacer`. |
-| MiddleClickPearl | todo | Portable. |
-| InventoryMove | mixin | Needs screen input handling. |
-| FastPlace / FastBreak | mixin | Needs the placement and breaking cooldowns. |
-| Blink | mixin | Needs to intercept outgoing packets. |
+| ChestStealer / AutoLoot | done | Finds the container's own slots as everything before the trailing 36. |
+| AutoTool | done | Compares with vanilla's own `getDestroySpeed`. |
+| AutoEat | done | |
+| AutoArmor | done | Scores from the item's own attribute modifiers. |
+| Scaffold | done | Built on the ported `BlockPlacer`. |
+| MiddleClickPearl | done | As **Pearl Key**. Not a port - upstream has no equivalent. |
+| InventoryMove | done | Mixin on `KeyMapping.isDown`, movement keys only, chat excluded. |
+| FastPlace / FastBreak | done | Accessors onto two private cooldown counters. |
+| Blink | done | Mixin on `Connection.send`, movement packets only, bounded queue. |
 
 ## World
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| Nuker | todo | Portable — needs upstream's `BlockBreaker`. |
-| Baritone | **n/a** | A separate project with its own repository and licence, not a Wurst module. It can be added as a dependency, but that is a dependency decision rather than a port. |
+| Nuker | done | Built on the ported `BlockBreaker`. |
+| Baritone | **n/a** | A separate project with its own repository and licence, not a Wurst module. It could be added as a dependency; that is a dependency decision rather than a port. |
 | Packet Canceller / Lag Exploits | **declined** | Described as triggering server desyncs, godmode states and vehicle bugs. That is inducing faults in someone else's server rather than playing the game differently. |
 | Spammer / Annoy | **declined** | Automated chat spam and advertising is aimed at the other people on the server, not at the game. |
 
 ## Shared code ported
 
-| File | From | Used by |
-| --- | --- | --- |
-| `feature/Rotation.java` | `util/Rotation` | Aim Assist, Killaura |
-| `feature/Rotations.java` | `util/RotationUtils` | Aim Assist, Killaura; will be needed by BowAimbot, Scaffold, Nuker |
+| File | From |
+| --- | --- |
+| `feature/Rotation.java`, `Rotations.java` | `util/Rotation`, `util/RotationUtils` |
+| `feature/Blocks.java` | `util/BlockUtils` |
+| `feature/BlockPlacer.java` | `util/BlockPlacer` |
+| `feature/BlockBreaker.java` | `util/BlockBreaker` |
+| `feature/Inventories.java` | `util/InventoryUtils` |
 
-Upstream's `BlockPlacer`, `BlockBreaker`, `InventoryUtils` and `ItemUtils` are
-the next util classes worth bringing over — between them they unblock Scaffold,
-Nuker, ChestStealer, AutoTool, AutoEat and AutoArmor, which is most of the
-remaining **todo** list.
+## The caveat that has not changed
 
-## Caveat
-
-Nothing here has been run. Every release so far has been compile-verified
-against the 26.2 jar and shipped without anyone launching it.
+**None of this has been run.** Every release has been compile-verified against
+the 26.2 jar and shipped without anyone launching it. That gap matters more now
+than it did: a mixin that fails to apply crashes the game on startup, and
+compiling proves only that the Java is valid, not that the injection points
+still exist at runtime. The GUI can be checked with `tools/preview/run.sh`;
+nothing else can.

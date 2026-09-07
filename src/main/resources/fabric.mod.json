@@ -3,7 +3,7 @@
   "id": "beanclient",
   "version": "${version}",
   "name": "Bean Client",
-  "description": "A bean-themed click-GUI for Fabric: a coffee-coloured in-game menu with a category rail, module rows, settings drawers, live search, drag/resize and JSON theming. 37 modules across eight tabs - HUD readouts and SMP quality of life, plus Combat, Movement and Render. No mixins: everything goes through a public API.",
+  "description": "A bean-themed click-GUI for Fabric: a coffee-coloured in-game menu with a category rail, module rows, settings drawers, live search, drag/resize and JSON theming. 65 modules across eight tabs - HUD readouts, SMP quality of life, Combat, Movement, Render and Player utilities.",
   "authors": ["Bean Client"],
   "contact": {
     "homepage": "https://github.com/RandomAccountGog200/bean-client",
@@ -13,6 +13,9 @@
   "license": "GPL-3.0-only",
   "icon": "assets/beanclient/icon.png",
   "environment": "client",
+  "mixins": [
+    "beanclient.mixins.json"
+  ],
   "entrypoints": {
     "client": ["club.bean.client.BeanClient"]
   },

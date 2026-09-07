@@ -17,11 +17,18 @@ They fall into two groups, and the difference matters more than the tab names:
   is not true. Any server running an anticheat is looking for exactly these, and on most
   servers using them is against the rules. They are here because they were asked for.
 
-**There are still no mixins.** Every module goes through a public API — an entity
-attribute, a packet the client already sends, or a projection onto the HUD. That is a real
-constraint rather than a boast: it is why Reach cannot make a hit land (the server keeps
-its own copy of the interaction-range attribute and validates against it), and why there
-is no x-ray or true fullbright, both of which need the block-render and lightmap paths.
+**Most of it still goes through a public API** — an entity attribute, a packet the client
+already sends, or a projection onto the HUD. That is a real constraint rather than a boast:
+it is why Reach cannot make a hit land, since the server keeps its own copy of the
+interaction-range attribute and validates against it.
+
+**Eleven mixins do the rest.** X-Ray, Freecam, No Slow, Blink, Inventory Move, Fast Place,
+Fast Break, Safe Walk and a true Fullbright all need to change behaviour that lives *inside*
+a vanilla method, and there is no public API for any of them. Every one targets a whole
+method rather than an instruction inside it, which is the difference between an injection
+that survives a Minecraft update and one that fails at startup. That is the trade: the
+client can now do these things, and a future Minecraft version can now break it on launch
+rather than merely degrade.
 
 ![HUD tab](docs/gui-hud.png)
 
@@ -233,7 +240,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.25.0.jar` in there too.
+3. Drop `bean-client-1.26.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
