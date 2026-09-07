@@ -23,6 +23,8 @@ public enum Category {
     MOVEMENT("Movement"),
     /** Drawing things the world did not draw for you. */
     RENDER("Render"),
+    /** Inventory, tools and blocks - things you would otherwise do by hand. */
+    PLAYER("Player"),
     /** How your own client renders the world. */
     VISUAL("Visual"),
     /** Server quality of life - built for DonutSMP, useful on any SMP. */

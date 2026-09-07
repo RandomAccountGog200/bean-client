@@ -1,7 +1,11 @@
 package club.bean.client;
 
 import club.bean.client.feature.AimAssist;
+import club.bean.client.feature.AutoArmor;
+import club.bean.client.feature.AutoEat;
+import club.bean.client.feature.AutoTool;
 import club.bean.client.feature.AutoTotem;
+import club.bean.client.feature.ChestStealer;
 import club.bean.client.feature.Brightness;
 import club.bean.client.feature.ChatFilter;
 import club.bean.client.feature.Combat;
@@ -9,6 +13,8 @@ import club.bean.client.feature.CrystalAura;
 import club.bean.client.feature.FrameLimit;
 import club.bean.client.feature.Movement;
 import club.bean.client.feature.MovementExtras;
+import club.bean.client.feature.Nuker;
+import club.bean.client.feature.Scaffold;
 import club.bean.client.feature.Trackers;
 import club.bean.client.feature.Zoom;
 import club.bean.client.gui.BeanGui;
@@ -105,6 +111,7 @@ public class BeanClient implements ClientModInitializer {
         Combat.reset(mc);
         Movement.reset(mc);
         MovementExtras.reset(mc);
+        AutoEat.stop(mc);
         Trackers.flushPlaytime();
         BeanConfig.save();
     }
@@ -143,6 +150,12 @@ public class BeanClient implements ClientModInitializer {
             Movement.tick(mc);
             MovementExtras.tick(mc, mc.player);
             AutoTotem.tick(mc);
+            AutoTool.tick(mc);
+            AutoEat.tick(mc);
+            AutoArmor.tick(mc);
+            ChestStealer.tick(mc);
+            Scaffold.tick(mc);
+            Nuker.tick(mc);
         }
         Trackers.tick(mc);
         BeanConfig.flush();

@@ -20,7 +20,7 @@ attribute, a packet the client already sends, or a projection onto the HUD — w
 is a real constraint on what these can do. Reach is the clearest case: it lengthens
 the client raycast, and the server throws the result away.
 
-There are **43 modules** across 7 categories.
+There are **49 modules** across 8 categories.
 
 | Category | Modules | Settings |
 | --- | ---: | ---: |
@@ -28,10 +28,11 @@ There are **43 modules** across 7 categories.
 | [Combat](#combat) | 8 | 26 |
 | [Movement](#movement) | 9 | 8 |
 | [Render](#render) | 5 | 13 |
+| [Player](#player) | 6 | 11 |
 | [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 3 | 1 |
-| **Total** | **43** | **54** |
+| **Total** | **49** | **65** |
 
 ---
 
@@ -97,6 +98,19 @@ _Draws what the client knew but had decided not to show you._
 | **Name Tags**<br>`module.name_tags` | Names, health and distance above every entity, through walls. | `Targets` — mode: All / Players / Mobs<br>`Range` — slider 8–128, default 48<br>`Show health` — toggle, default true<br>`Show distance` — toggle, default true |
 | **Item ESP**<br>`module.item_esp` | Labels dropped items with their name and stack size. | `Range` — slider 8–64, default 32 |
 | **Player Radar**<br>`module.player_radar` | A top-down radar, rotated so your facing is up. Shares the bottom-right corner with the Effects HUD. | `Targets` — mode: Players / Mobs / All<br>`Range` — slider 16–128, default 64<br>`Size` — slider 60–160, default 100 |
+
+## Player
+
+__
+
+| Module | What it does | Settings |
+| --- | --- | --- |
+| **Auto Tool**<br>`module.auto_tool` | Switches to the fastest tool for whatever your crosshair is on, using vanilla's own mining-speed number. | `Use swords` — toggle, default false<br>`Repair mode` — slider 0–100, default 0 |
+| **Auto Eat**<br>`module.auto_eat` | Eats when hunger drops, then puts your item back. | `Eat when hunger below` — slider 1–19, default 16 |
+| **Auto Armor**<br>`module.auto_armor` | Wears the best armour you are carrying, scored from the armour and toughness its attribute modifiers grant. | _none_ |
+| **Chest Stealer**<br>`module.chest_stealer` | Empties an open container into your inventory, one shift-click at a time. | `Items per second` — slider 1–20, default 8<br>`Close when empty` — toggle, default true |
+| **Scaffold**<br>`module.scaffold` | Places a full block under your feet as you walk off an edge. | `Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 360 |
+| **Nuker**<br>`module.nuker` | Breaks every block in range, nearest first. One block per tick, because that is how vanilla breaking accumulates damage. | `Range` — slider 1–6, default 4<br>`Auto tool` — toggle, default true<br>`Rotate` — toggle, default true<br>`Turn speed` — slider 20–720, default 360 |
 
 ## Visual
 

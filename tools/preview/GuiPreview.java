@@ -132,15 +132,17 @@ public final class GuiPreview {
         Draw.bean(null, 26, 19, 20, 13, theme.accent, theme.panel);
         Icons.cross(null, WIDTH - 20, 19, 9, theme.text);
 
-        // Category rail: eight pills, first selected.
-        for (int i = 0; i < 8; i++) {
+        // Category rail: one pill per category, first selected. Driven off the
+        // enum so adding a tab shows up here without editing the preview.
+        var categories = club.bean.client.module.Category.values();
+        for (int i = 0; i < categories.length; i++) {
             int y = 38 + i * 24;
             boolean selected = i == 0;
             if (selected) {
                 Draw.roundRect(null, 18, y, 92, 20, 6, theme.accent);
             }
             int tint = selected ? Colours.contrastOn(theme.accent) : theme.textDim;
-            Icons.category(null, club.bean.client.module.Category.values()[i], 26, y + 5, 11, tint);
+            Icons.category(null, categories[i], 26, y + 5, 11, tint);
         }
 
         // Module rows.

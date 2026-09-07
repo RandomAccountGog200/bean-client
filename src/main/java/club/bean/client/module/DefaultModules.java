@@ -58,6 +58,7 @@ public final class DefaultModules {
         combat();
         movement();
         render();
+        player();
         visual();
         smp();
         misc();
@@ -229,6 +230,42 @@ public final class DefaultModules {
                 .setting(Setting.mode("Targets", "Players", "Mobs", "All"))
                 .setting(Setting.slider("Range", 64, 16, 128, 0))
                 .setting(Setting.slider("Size", 100, 60, 160, 0));
+    }
+
+    // ---- Player - inventory, tools and blocks ------------------------------
+
+    private static void player() {
+        module("Auto Tool", Category.PLAYER, enabled -> {},
+                        "Switches to the fastest tool for whatever your crosshair is on, using "
+                                + "vanilla's own mining-speed number.")
+                .setting(Setting.toggle("Use swords", false))
+                .setting(Setting.slider("Repair mode", 0, 0, 100, 0));
+
+        module("Auto Eat", Category.PLAYER, enabled -> {},
+                        "Eats when hunger drops, then puts your item back.")
+                .setting(Setting.slider("Eat when hunger below", 16, 1, 19, 0));
+
+        module("Auto Armor", Category.PLAYER, enabled -> {},
+                "Wears the best armour you are carrying, scored from the armour and toughness "
+                        + "its attribute modifiers grant.");
+
+        module("Chest Stealer", Category.PLAYER, enabled -> {},
+                        "Empties an open container into your inventory, one shift-click at a time.")
+                .setting(Setting.slider("Items per second", 8, 1, 20, 0))
+                .setting(Setting.toggle("Close when empty", true));
+
+        module("Scaffold", Category.PLAYER, enabled -> {},
+                        "Places a full block under your feet as you walk off an edge.")
+                .setting(Setting.toggle("Rotate", true))
+                .setting(Setting.slider("Turn speed", 360, 20, 720, 0));
+
+        module("Nuker", Category.PLAYER, enabled -> {},
+                        "Breaks every block in range, nearest first. One block per tick, because "
+                                + "that is how vanilla breaking accumulates damage.")
+                .setting(Setting.slider("Range", 4, 1, 6, 0))
+                .setting(Setting.toggle("Auto tool", true))
+                .setting(Setting.toggle("Rotate", true))
+                .setting(Setting.slider("Turn speed", 360, 20, 720, 0));
     }
 
     // ---- Visual - how your own client renders -----------------------------

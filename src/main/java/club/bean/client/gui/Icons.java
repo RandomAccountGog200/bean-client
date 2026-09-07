@@ -31,6 +31,7 @@ public final class Icons {
             case COMBAT -> combat(gfx, x, y, size, colour);
             case MOVEMENT -> movement(gfx, x, y, size, colour);
             case RENDER -> world(gfx, x, y, size, colour);
+            case PLAYER -> player(gfx, x, y, size, colour);
             case VISUAL -> visual(gfx, x, y, size, colour);
             case SMP -> smp(gfx, x, y, size, colour);
             case MISC -> misc(gfx, x, y, size, colour);
