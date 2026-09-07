@@ -12,12 +12,11 @@ package club.bean.client.module;
  * work than drawing vectors and is all most people will want.
  */
 public enum Category {
-    COMBAT("Combat"),
-    MOVEMENT("Movement"),
+    /** Readouts drawn on your own screen. */
+    HUD("HUD"),
+    /** How your own client renders the world. */
     VISUAL("Visual"),
-    PLAYER("Player"),
-    WORLD("World"),
-    /** Server-side quality of life - built for DonutSMP, useful on any SMP. */
+    /** Server quality of life - built for DonutSMP, useful on any SMP. */
     SMP("SMP"),
     MISC("Misc"),
     /**

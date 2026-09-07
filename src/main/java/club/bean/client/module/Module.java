@@ -15,7 +15,7 @@ import java.util.Locale;
  * in later means writing a listener, not touching draw code.
  *
  * <pre>{@code
- * ModuleRegistry.registerModule("Sprint", Category.MOVEMENT, on -> {
+ * ModuleRegistry.registerModule("Zoom", Category.VISUAL, on -> {
  *     if (on) SprintFeature.start(); else SprintFeature.stop();
  * });
  * }</pre>
@@ -35,8 +35,6 @@ public final class Module {
 
     private String description = "";
     private boolean enabled;
-    /** True when this module is wired to real behaviour rather than a log line. */
-    private boolean working;
 
     /** Per-row drawer state, owned by the module so it survives category switches. */
     private boolean expanded;
@@ -66,16 +64,6 @@ public final class Module {
 
     public String description() {
         return description;
-    }
-
-    /** Marks this module as actually implemented; the GUI badges it. */
-    public Module working() {
-        this.working = true;
-        return this;
-    }
-
-    public boolean isWorking() {
-        return working;
     }
 
     public Module description(String text) {
@@ -145,6 +133,7 @@ public final class Module {
         if (onToggle != null) {
             onToggle.onToggle(enabled);
         }
+        ModuleRegistry.playToggleSound(enabled);
     }
 
     void onSettingChanged(Setting setting) {

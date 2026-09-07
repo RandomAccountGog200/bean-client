@@ -411,16 +411,9 @@ public final class BeanGuiRenderer {
 
         String name = Draw.clip(font, module.name(), nameMax - tagW);
         Draw.text(gfx, font, name, nameX, textY, nameColour);
-        int after = nameX + font.width(name);
         if (searching && font.width(name) + tagW <= nameMax) {
-            Draw.text(gfx, font, tag, after + 11, textY, Colours.fade(theme.textDim, 0.6f));
-            after += 11 + font.width(tag);
-        }
-        // A dot marks the modules that are actually implemented. Everything
-        // without one flips a boolean and writes a log line.
-        if (module.isWorking() && after + 8 < gearX()) {
-            Draw.circle(gfx, after + 5, textY + font.lineHeight / 2.0 - 1, 2,
-                    Colours.fade(theme.accent, Math.max(0.55f, Math.max(on, hover))));
+            Draw.text(gfx, font, tag, nameX + font.width(name) + 11, textY,
+                    Colours.fade(theme.textDim, 0.6f));
         }
 
         if (module.hasSettings()) {
@@ -468,7 +461,13 @@ public final class BeanGuiRenderer {
         int textY = y + (BeanGui.SETTING_H - font.lineHeight) / 2;
         boolean hovered = cursorInList && BeanGui.hit(mouseX, mouseY, sx, y, sw, BeanGui.SETTING_H);
 
-        Draw.text(gfx, font, Draw.clip(font, setting.name(), 90), sx, textY,
+        // How much room the label has depends on what control sits beside it.
+        int labelMax = switch (setting.type()) {
+            case TOGGLE -> sw - 34;
+            case SLIDER -> sliderBounds()[0] - sx - 8;
+            case MODE -> sw - font.width(setting.displayValue()) - 30;
+        };
+        Draw.text(gfx, font, Draw.clip(font, setting.name(), Math.max(24, labelMax)), sx, textY,
                 hovered ? theme.text : theme.textDim);
 
         switch (setting.type()) {

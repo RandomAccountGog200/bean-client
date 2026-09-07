@@ -1,6 +1,9 @@
 package club.bean.client.module;
 
 import club.bean.client.BeanClient;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -93,6 +96,23 @@ public final class ModuleRegistry {
     }
 
     static void logSettingChange(Module module, Setting setting) {
-        BeanClient.LOGGER.info("[shell] {} :: {} = {}", module.name(), setting.name(), setting.displayValue());
+        BeanClient.LOGGER.debug("{} :: {} = {}", module.name(), setting.name(), setting.displayValue());
+    }
+
+    /**
+     * Clicks when a module is toggled, if Toggle Sounds is on. Pitched up for
+     * on and down for off, so the two are distinguishable without looking.
+     */
+    static void playToggleSound(boolean enabled) {
+        Module sounds = BY_ID.get("toggle_sounds");
+        if (sounds == null || !sounds.isEnabled()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.getSoundManager() == null) {
+            return;
+        }
+        mc.getSoundManager().play(
+                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, enabled ? 1.5f : 1.1f));
     }
 }

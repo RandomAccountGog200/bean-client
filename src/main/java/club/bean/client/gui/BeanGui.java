@@ -52,7 +52,7 @@ public final class BeanGui {
     private static float progress;
     private static long lastFrameNanos;
 
-    private static Category selected = Category.COMBAT;
+    private static Category selected = Category.HUD;
     private static String query = "";
     private static boolean searchFocused;
 
@@ -83,7 +83,7 @@ public final class BeanGui {
         y = BeanConfig.getInt("gui.y", 60);
         width = Anim.clamp(BeanConfig.getInt("gui.w", 560), MIN_W, MAX_W);
         height = Anim.clamp(BeanConfig.getInt("gui.h", 360), MIN_H, MAX_H);
-        selected = Category.byName(BeanConfig.getString("gui.category", Category.COMBAT.name()));
+        selected = Category.byName(BeanConfig.getString("gui.category", Category.HUD.name()));
     }
 
     private static void persistWindow() {

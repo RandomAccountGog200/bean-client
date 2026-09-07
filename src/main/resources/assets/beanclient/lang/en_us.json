@@ -1,4 +1,5 @@
 {
   "key.category.beanclient.main": "Bean Client",
-  "key.beanclient.menu": "Open Bean Client GUI"
+  "key.beanclient.menu": "Open Bean Client GUI",
+  "key.beanclient.zoom": "Zoom (hold)"
 }

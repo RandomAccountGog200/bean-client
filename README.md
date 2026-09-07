@@ -4,15 +4,17 @@ A bean-themed click-GUI for Minecraft **26.2** (Fabric) — a coffee-coloured in
 menu you open with Right Shift to browse modules, flip toggles, and re-skin the whole
 thing from JSON theme files.
 
-**Read this bit first:** Bean Client is mostly the *window*, not the client. The
-interface is complete; the module list mostly is not. Six of the sixty modules are wired
-to real behaviour — the HUD, the readouts, and the frame-rate cap — and carry a dot next
-to their name. **Every other row flips a boolean and writes a line to the log.**
+**Every module works.** There is no placeholder list — if a row is in the menu, toggling
+it changes something.
 
-Combat automation, movement exploits and anything that would show you what the game did
-not are placeholders, and they stay that way. They are labels in a menu.
+They all share one property: each reads state the vanilla client already has and draws it
+on your own screen, or flips a vanilla option. Nothing is sent to the server, nothing is
+automated on your behalf, and nothing reveals what the game did not already send you.
+That is why there is no Combat tab — aim assistance, movement exploits and
+see-through-walls rendering only pay off by taking something from the other people on the
+server, and they are not going to appear here.
 
-![Combat tab](docs/gui-combat.png)
+![HUD tab](docs/gui-hud.png)
 
 ---
 
@@ -59,9 +61,9 @@ change the setting:
 **Title bar** — the bean logo and name on the left; the active theme and the module
 count on the right; the close button. Grab anywhere along it to drag the window.
 
-**Category rail** (left) — eight tabs, each with an icon: Combat, Movement, Visual,
-Player, World, SMP, Misc, and Themes. The selected one is filled with the accent colour
-by a pill that slides between tabs; hovering lights the others up.
+**Category rail** (left) — five tabs, each with an icon: HUD, Visual, SMP, Misc and
+Themes. The selected one is filled with the accent colour by a pill that slides between
+tabs; hovering lights the others up.
 
 **Module list** (right) — the rows for whichever tab you are on, six per category. Each
 row shows its name, a settings icon if it has settings, and a toggle switch. Switching a module
@@ -116,29 +118,59 @@ turns it off. That is a per-theme setting, not a hardcoded look.
 
 ### What the modules do
 
-**Six of them work.** They carry a dot next to their name in the list:
+All twenty, by tab. [MODULES.md](MODULES.md) has the settings, defaults and config keys,
+generated straight from the registry so it cannot drift from the code.
 
-| Module | Tab | What it does |
-| --- | --- | --- |
-| **HUD** | Visual | Draws the watermark and the enabled-module list. Corner is configurable. |
-| **FPS Display** | Visual | Your frame rate, on the HUD. |
-| **Coordinates** | Visual | Your position, plus the matching Nether coordinates. |
-| **Ping Display** | Visual | Your latency to the server. |
-| **Session Timer** | SMP | How long the session has been running. |
-| **FPS Limiter** | Misc | Actually changes the vanilla frame-rate cap, and restores it when switched off. |
+**HUD** — readouts drawn on your own screen
 
-All six read state the vanilla client already has and draw it on your own screen. Nothing
-is sent to the server, and nothing is derived that the client was not already given.
+| | |
+| --- | --- |
+| **Watermark** | The Bean Client mark in the corner. |
+| **Module List** | Everything you have switched on, either corner. |
+| **FPS Display** | Your frame rate. |
+| **Coordinates** | Your position, with the matching Nether coordinates. |
+| **Ping Display** | Your latency to the server. |
+| **CPS Counter** | Clicks per second, left and right. It counts clicks you made — it never makes one. |
+| **Speedometer** | How fast you are actually moving, in blocks per second. |
+| **Clock** | The real-world time, so you know when to stop. |
+| **Session Timer** | How long this session has been running. |
+| **Keystrokes** | WASD, the mouse buttons and jump, lit while held. |
+| **Armour HUD** | Your armour and held item with durability left. |
+| **Effects HUD** | Your potion effects and how long they have. |
+| **Server Info** | Which server you are on, and how many players are online. |
 
-**The other fifty-four are placeholders.** Toggling one prints `[shell] Killaura -> ON`
-to the log and changes no game behaviour whatsoever. That covers everything in Combat,
-Movement and World, and most of Player — deliberately, and permanently. Those are the
-ones whose only purpose is to beat other players using information or actions the game
-never handed you, and they are not going to be implemented here.
+**Visual** — how your own client renders
 
-**[MODULES.md](MODULES.md)** lists all 60 with their 95 settings, defaults, ranges and
-config keys, and marks which are live. It is generated from the registry, so it cannot
-drift from what the client actually registers.
+| | |
+| --- | --- |
+| **Fullbright** | Lifts the brightness floor past the vanilla slider. Lighting only — it cannot show you a block the server never sent. |
+| **Zoom** | Hold **C** to narrow your FOV. The same change as moving the FOV slider. |
+
+**SMP** — server quality of life
+
+| | |
+| --- | --- |
+| **Playtime Tracker** | Counts your time on each server and remembers it between sessions. |
+| **Death Coords** | Records where you died and prints it to your own chat. |
+| **Chat Filter** | Hides duplicate chat, optionally links. A display filter — nothing is sent back. |
+
+**Misc**
+
+| | |
+| --- | --- |
+| **FPS Limiter** | Caps your frame rate, and puts the vanilla setting back when you switch it off. |
+| **Toggle Sounds** | A click when you toggle a module, pitched up for on and down for off. |
+
+### What is deliberately not here
+
+No aimbot, killaura, auto-crystal, auto-totem or reach. No speed, no-slow, step, velocity
+or no-fall. No ESP, chams, x-ray, chest or storage highlighting, freecam, or chunk
+analysis for finding bases. Earlier versions listed some of these as placeholder rows;
+they are gone rather than left as labels that never do anything.
+
+Those all work by giving you information or actions the game did not hand you, at the
+expense of the other people on the server. Everything above works whether or not anyone
+else is playing, which is the test.
 
 ---
 
@@ -148,7 +180,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.2.0.jar` in there too.
+3. Drop `bean-client-2.0.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -159,7 +191,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.2.0.jar`.
+The jar lands in `build/libs/bean-client-2.0.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
@@ -217,7 +249,7 @@ search filter and the module list all iterate `Category.values()`, so that is th
 change:
 
 ```java
-SCRIPTS("Scripts", new String[] {
+COMBAT("Combat", new String[] {
         ".........",
         "..#####..",
         ".##...##.",

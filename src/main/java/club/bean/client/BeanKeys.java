@@ -6,7 +6,7 @@ import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * The one key the client binds: Right Shift opens the GUI.
+ * The keys the client binds: Right Shift opens the GUI, C holds zoom.
  *
  * <p>It is a normal Minecraft keybind, so it shows up under Controls and can be
  * rebound. The GUI checks {@code openMenu.matches(event)} rather than the raw
@@ -17,12 +17,18 @@ public final class BeanKeys {
             KeyMapping.Category.register(BeanClient.id("main"));
 
     public static KeyMapping openMenu;
+    public static KeyMapping zoom;
 
     private BeanKeys() {
     }
 
     public static void register() {
-        openMenu = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-                "key.beanclient.menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, CATEGORY));
+        openMenu = bind("key.beanclient.menu", GLFW.GLFW_KEY_RIGHT_SHIFT);
+        zoom = bind("key.beanclient.zoom", GLFW.GLFW_KEY_C);
+    }
+
+    private static KeyMapping bind(String translation, int key) {
+        return KeyMappingHelper.registerKeyMapping(
+                new KeyMapping(translation, InputConstants.Type.KEYSYM, key, CATEGORY));
     }
 }

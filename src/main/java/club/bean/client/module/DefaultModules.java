@@ -1,288 +1,115 @@
 package club.bean.client.module;
 
-import club.bean.client.BeanClient;
 import net.minecraft.client.Minecraft;
 
 /**
- * The modules the client ships with.
+ * Every module Bean Client ships with — and every one of them works.
  *
- * <p>Two kinds live here, and the difference is deliberate and visible:
+ * <p>There is no placeholder list any more. If a row is in the menu, toggling
+ * it changes something. The whole set shares one property: it reads state the
+ * vanilla client already has and draws it on your own screen, or flips a
+ * vanilla option. Nothing is sent to the server, nothing is automated on your
+ * behalf, and nothing reveals what the game did not already send you.
  *
- * <ul>
- *   <li>{@link #real} modules are wired to a listener that changes something.
- *       They read state the vanilla client already has and draw it on your own
- *       screen, or flip a vanilla option. Nothing is sent to the server.
- *   <li>{@link #placeholder} modules flip a boolean and write a line to the log.
- *       They exist so the GUI has a realistic list to lay out.
- * </ul>
- *
- * <p>Combat automation, movement exploits and anything that reveals what the
- * game did not show you are placeholders and stay that way. They are labels in
- * a menu, not features.
+ * <p>That is the line, and it is why there is no Combat tab. Aim assistance,
+ * movement exploits and see-through-walls rendering are the features that only
+ * pay off by taking something from the other people on the server, and they are
+ * not going to appear here.
  */
 public final class DefaultModules {
     private DefaultModules() {
     }
 
-    /** Flips a boolean, says so, does nothing. */
-    private static Module placeholder(String name, Category category, String note) {
-        return ModuleRegistry.registerModule(name, category,
-                        enabled -> BeanClient.LOGGER.info("[shell] {} -> {}", name, enabled ? "ON" : "OFF"))
+    private static Module hud(String name, String note) {
+        return ModuleRegistry.registerModule(name, Category.HUD, enabled -> {})
                 .description(note);
     }
 
-    /** Registers a module whose toggle actually does something. */
-    private static Module real(String name, Category category, Module.ToggleListener onToggle,
-                               String note) {
-        return ModuleRegistry.registerModule(name, category, onToggle).description(note).working();
+    private static Module module(String name, Category category, Module.ToggleListener onToggle,
+                                 String note) {
+        return ModuleRegistry.registerModule(name, category, onToggle).description(note);
     }
 
     public static void registerAll() {
-        combat();
-        movement();
+        hudModules();
         visual();
-        player();
-        world();
         smp();
         misc();
     }
 
-    // ---- Combat - every one of these is a placeholder ---------------------
+    // ---- HUD - readouts drawn on your own screen --------------------------
 
-    private static void combat() {
-        placeholder("Aimbot", Category.COMBAT, "Placeholder row - no aiming happens.")
-                .setting(Setting.slider("Range", 3.0, 1.0, 6.0, 1))
-                .setting(Setting.slider("FOV", 90, 10, 180, 0))
-                .setting(Setting.mode("Target", "Closest", "Lowest health", "Angle"))
-                .setting(Setting.toggle("Through walls", false));
+    private static void hudModules() {
+        hud("Watermark", "The Bean Client mark in the corner.");
 
-        placeholder("Killaura", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("CPS", 8, 1, 20, 0))
-                .setting(Setting.mode("Sort", "Distance", "Health", "Armour"))
-                .setting(Setting.toggle("Players only", true));
-
-        placeholder("Auto Totem", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Health threshold", 8, 1, 20, 0))
-                .setting(Setting.slider("Delay", 2, 0, 20, 0))
-                .setting(Setting.toggle("Keep in offhand", true))
-                .setting(Setting.mode("Move mode", "Instant", "Legit", "Packet"));
-
-        placeholder("Auto Crystal", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Place range", 4.5, 1.0, 6.0, 1))
-                .setting(Setting.slider("Min damage", 6, 0, 20, 0))
-                .setting(Setting.toggle("Anti-suicide", true));
-
-        placeholder("Auto Anchor", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Range", 4.5, 1.0, 6.0, 1))
-                .setting(Setting.toggle("Auto glowstone", true));
-
-        placeholder("Auto Armour", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Delay", 3, 0, 20, 0))
-                .setting(Setting.toggle("Prefer enchanted", true));
-
-        placeholder("Offhand", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.mode("Item", "Totem", "Crystal", "Gapple", "Shield"))
-                .setting(Setting.toggle("Swap on low health", true));
-
-        placeholder("Auto Pot", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Health threshold", 10, 1, 20, 0))
-                .setting(Setting.mode("Type", "Healing", "Regen", "Both"));
-
-        placeholder("Silent Aim", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Smoothing", 0.4, 0.0, 1.0, 2))
-                .setting(Setting.toggle("Only while attacking", true));
-
-        placeholder("Trigger Bot", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Delay", 4, 0, 20, 0))
-                .setting(Setting.toggle("Players only", true));
-
-        placeholder("Criticals", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.mode("Mode", "Packet", "Jump", "Mini-jump"));
-
-        placeholder("Bow Aimbot", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Prediction", 1.0, 0.0, 3.0, 1))
-                .setting(Setting.toggle("Only when drawn", true));
-
-        placeholder("Shield Breaker", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.mode("Method", "Axe swap", "Disabler"));
-
-        placeholder("Surround", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.toggle("Centre first", true))
-                .setting(Setting.slider("Blocks per tick", 4, 1, 8, 0));
-
-        placeholder("Burrow", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.mode("Mode", "Instant", "Packet"));
-
-        placeholder("Hitflick", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.slider("Flick angle", 35, 0, 180, 0));
-
-        placeholder("Anti Bot", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.toggle("Ignore no-armour", true));
-
-        placeholder("Reach Display", Category.COMBAT, "Placeholder row.")
-                .setting(Setting.mode("Units", "Blocks", "Metres"));
-    }
-
-    private static void movement() {
-        placeholder("Sprint", Category.MOVEMENT, "Placeholder row.")
-                .setting(Setting.toggle("Keep while sneaking", false))
-                .setting(Setting.mode("Mode", "Legit", "Always"));
-
-        placeholder("Speed", Category.MOVEMENT, "Placeholder row.")
-                .setting(Setting.slider("Multiplier", 1.4, 1.0, 3.0, 2))
-                .setting(Setting.mode("Mode", "Vanilla", "Strafe", "Bhop"));
-
-        placeholder("No Slow", Category.MOVEMENT, "Placeholder row.")
-                .setting(Setting.toggle("Eating", true))
-                .setting(Setting.toggle("Shields", true))
-                .setting(Setting.toggle("Cobwebs", false));
-
-        placeholder("Step", Category.MOVEMENT, "Placeholder row.")
-                .setting(Setting.slider("Height", 1.0, 0.5, 2.5, 1));
-
-        placeholder("Velocity", Category.MOVEMENT, "Placeholder row.")
-                .setting(Setting.slider("Horizontal", 0, 0, 100, 0))
-                .setting(Setting.slider("Vertical", 0, 0, 100, 0));
-
-        placeholder("Jesus", Category.MOVEMENT, "Placeholder row.")
-                .setting(Setting.mode("Mode", "Solid", "Dolphin"));
-    }
-
-    // ---- Visual - the HUD block is real -----------------------------------
-
-    private static void visual() {
-        real("HUD", Category.VISUAL, enabled -> {}, "Watermark, readouts and the enabled-module list.")
-                .setting(Setting.toggle("Watermark", true))
-                .setting(Setting.toggle("Module list", true))
+        hud("Module List", "Lists every module you have switched on.")
                 .setting(Setting.mode("Corner", "Top right", "Top left"));
 
-        real("FPS Display", Category.VISUAL, enabled -> {}, "Shows your frame rate on the HUD.");
+        hud("FPS Display", "Your current frame rate.");
 
-        real("Coordinates", Category.VISUAL, enabled -> {},
-                        "Shows your position, and the matching Nether coordinates.")
-                .setting(Setting.toggle("Show nether", true));
+        hud("Coordinates", "Your position, and the matching Nether coordinates.")
+                .setting(Setting.toggle("Nether conversion", true));
 
-        real("Ping Display", Category.VISUAL, enabled -> {}, "Shows your latency to the server.");
+        hud("Ping Display", "Your latency to the server.");
 
-        placeholder("Fullbright", Category.VISUAL, "Placeholder row.")
-                .setting(Setting.slider("Gamma", 15, 1, 20, 0));
+        hud("CPS Counter", "Clicks per second, left and right. Counts clicks you made - it never makes one.");
 
-        placeholder("ESP", Category.VISUAL, "Placeholder row.")
-                .setting(Setting.mode("Shape", "Box", "Outline", "Glow"))
-                .setting(Setting.toggle("Players", true))
-                .setting(Setting.toggle("Mobs", false));
+        hud("Speedometer", "How fast you are actually moving, in blocks per second.");
 
-        placeholder("Chams", Category.VISUAL, "Placeholder row.")
-                .setting(Setting.slider("Opacity", 0.6, 0.0, 1.0, 2));
+        hud("Clock", "The real-world time, so you know when to stop.");
 
-        placeholder("Nametags", Category.VISUAL, "Placeholder row.")
-                .setting(Setting.slider("Scale", 1.0, 0.5, 3.0, 1))
-                .setting(Setting.toggle("Show health", true));
+        hud("Session Timer", "How long this session has been running.");
 
-        placeholder("Zoom", Category.VISUAL, "Placeholder row.")
-                .setting(Setting.slider("Factor", 4, 1, 10, 1));
+        hud("Keystrokes", "WASD, the mouse buttons and jump, lit while held.");
+
+        hud("Armour HUD", "Your armour and held item with durability remaining.");
+
+        hud("Effects HUD", "Your active potion effects and how long they have left.");
+
+        hud("Server Info", "Which server you are on and how many players are online.");
     }
 
-    private static void player() {
-        placeholder("Auto Tool", Category.PLAYER, "Placeholder row.")
-                .setting(Setting.toggle("Avoid breaking tools", true));
+    // ---- Visual - how your own client renders -----------------------------
 
-        placeholder("Auto Eat", Category.PLAYER, "Placeholder row.")
-                .setting(Setting.slider("Hunger threshold", 12, 1, 20, 0));
+    private static void visual() {
+        module("Fullbright", Category.VISUAL, enabled -> {},
+                        "Lifts the brightness floor past the vanilla slider. Lighting only - it cannot "
+                                + "show you a block the server did not send.")
+                .setting(Setting.slider("Brightness", 0.6, 0.0, 1.0, 2));
 
-        placeholder("Fast Place", Category.PLAYER, "Placeholder row.")
-                .setting(Setting.slider("Delay", 2, 0, 10, 0));
-
-        placeholder("Inventory Manager", Category.PLAYER, "Placeholder row.")
-                .setting(Setting.toggle("Auto sort", true))
-                .setting(Setting.toggle("Drop junk", false));
-
-        placeholder("No Fall", Category.PLAYER, "Placeholder row.")
-                .setting(Setting.mode("Mode", "Packet", "Edit", "Motion"));
-
-        placeholder("Freecam", Category.PLAYER, "Placeholder row.")
-                .setting(Setting.slider("Speed", 1.0, 0.2, 5.0, 1));
+        module("Zoom", Category.VISUAL, enabled -> {},
+                        "Hold the zoom key to narrow your FOV. The same change as moving the FOV slider.")
+                .setting(Setting.slider("Factor", 4, 1, 10, 1))
+                .setting(Setting.toggle("Smooth", true));
     }
 
-    private static void world() {
-        placeholder("Chest ESP", Category.WORLD, "Placeholder row.")
-                .setting(Setting.slider("Range", 32, 8, 128, 0))
-                .setting(Setting.toggle("Trapped chests", true));
-
-        placeholder("Nuker", Category.WORLD, "Placeholder row.")
-                .setting(Setting.slider("Radius", 4, 1, 8, 0))
-                .setting(Setting.mode("Order", "Nearest", "Top down"));
-
-        placeholder("Scaffold", Category.WORLD, "Placeholder row.")
-                .setting(Setting.toggle("Tower", true))
-                .setting(Setting.mode("Rotation", "None", "Snap", "Smooth"));
-
-        placeholder("Auto Farm", Category.WORLD, "Placeholder row.")
-                .setting(Setting.slider("Range", 4.5, 1.0, 6.0, 1))
-                .setting(Setting.toggle("Replant", true));
-
-        placeholder("Xray", Category.WORLD, "Placeholder row.")
-                .setting(Setting.slider("Opacity", 0.25, 0.0, 1.0, 2));
-
-        placeholder("Terrain Blend", Category.WORLD, "Placeholder row.")
-                .setting(Setting.mode("Blend", "Off", "Soft", "Hard"));
-    }
-
-    // ---- SMP - server quality of life, nothing hidden ---------------------
+    // ---- SMP - server quality of life -------------------------------------
 
     private static void smp() {
-        real("Session Timer", Category.SMP, enabled -> {}, "How long this session has been running.");
+        module("Playtime Tracker", Category.SMP, enabled -> {},
+                "Counts how long you have spent on each server, and remembers it.");
 
-        placeholder("Playtime Tracker", Category.SMP, "Placeholder row.")
-                .setting(Setting.toggle("Per server", true));
+        module("Death Coords", Category.SMP, enabled -> {},
+                "Records where you died and prints it to your own chat.");
 
-        placeholder("Death Coords", Category.SMP, "Placeholder row.")
-                .setting(Setting.toggle("Copy to clipboard", true));
-
-        placeholder("Waypoints", Category.SMP, "Placeholder row.")
-                .setting(Setting.slider("Render distance", 256, 32, 1024, 0))
-                .setting(Setting.toggle("Show distance", true));
-
-        placeholder("Inventory Value", Category.SMP, "Placeholder row - would price your own inventory.")
-                .setting(Setting.mode("Source", "Auction house", "Shop"))
-                .setting(Setting.toggle("Include hotbar", true));
-
-        placeholder("AH Price Lookup", Category.SMP, "Placeholder row.")
-                .setting(Setting.toggle("On hover", true));
-
-        placeholder("Auto Reconnect", Category.SMP, "Placeholder row.")
-                .setting(Setting.slider("Delay", 5, 1, 60, 0))
-                .setting(Setting.slider("Attempts", 10, 1, 100, 0));
-
-        placeholder("Chat Filter", Category.SMP, "Placeholder row.")
+        module("Chat Filter", Category.SMP, enabled -> {},
+                        "Hides chat you have already seen. A display filter - nothing is sent back.")
                 .setting(Setting.toggle("Hide duplicates", true))
-                .setting(Setting.toggle("Hide advertisements", true));
-
-        placeholder("Server Stats", Category.SMP, "Placeholder row.")
-                .setting(Setting.toggle("Show TPS", true))
-                .setting(Setting.toggle("Show player count", true));
+                .setting(Setting.toggle("Hide links", false));
     }
+
+    // ---- Misc -------------------------------------------------------------
 
     private static void misc() {
-        real("FPS Limiter", Category.MISC, DefaultModules::applyFrameLimit,
-                        "Caps your frame rate. Actually changes the vanilla setting.")
+        module("FPS Limiter", Category.MISC, DefaultModules::applyFrameLimit,
+                        "Caps your frame rate, and puts the vanilla setting back when you switch it off.")
                 .setting(Setting.slider("Limit", 60, 10, 260, 0));
 
-        placeholder("Auto GG", Category.MISC, "Placeholder row.")
-                .setting(Setting.slider("Delay", 500, 0, 3000, 0));
-
-        placeholder("Discord RPC", Category.MISC, "Placeholder row.")
-                .setting(Setting.toggle("Show server", false));
-
-        placeholder("Announcer", Category.MISC, "Placeholder row.")
-                .setting(Setting.mode("Voice", "Classic", "Robot", "Off"));
-
-        placeholder("Client Chat", Category.MISC, "Placeholder row.")
-                .setting(Setting.toggle("Prefix messages", true));
-
-        placeholder("Name Protect", Category.MISC, "Placeholder row.")
-                .setting(Setting.toggle("Hide own name", true));
+        module("Toggle Sounds", Category.MISC, enabled -> {},
+                "Plays a click when you toggle a module, so you can feel the GUI respond.");
     }
+
+    // ---- the one module that changes a vanilla setting --------------------
 
     /** Remembers the vanilla cap so turning the module off puts it back. */
     private static int savedFrameLimit = -1;
@@ -312,7 +139,6 @@ public final class DefaultModules {
     public static void onFrameLimitChanged() {
         Module module = ModuleRegistry.get("fps_limiter");
         if (module != null && module.isEnabled()) {
-            savedFrameLimit = savedFrameLimit < 0 ? -1 : savedFrameLimit;
             applyFrameLimit(true);
         }
     }

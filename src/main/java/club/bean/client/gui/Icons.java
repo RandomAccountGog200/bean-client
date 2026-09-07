@@ -27,15 +27,20 @@ public final class Icons {
             return;
         }
         switch (category) {
-            case COMBAT -> combat(gfx, x, y, size, colour);
-            case MOVEMENT -> movement(gfx, x, y, size, colour);
+            case HUD -> hudIcon(gfx, x, y, size, colour);
             case VISUAL -> visual(gfx, x, y, size, colour);
-            case PLAYER -> player(gfx, x, y, size, colour);
-            case WORLD -> world(gfx, x, y, size, colour);
             case SMP -> smp(gfx, x, y, size, colour);
             case MISC -> misc(gfx, x, y, size, colour);
             case THEMES -> themes(gfx, x, y, size, colour);
         }
+    }
+
+    /** A screen with a readout on it. */
+    public static void hudIcon(GuiGraphicsExtractor gfx, int x, int y, int size, int colour) {
+        double thick = Math.max(1.0, size * 0.10);
+        Draw.roundBorder(gfx, x, y + size * 0.12, size, size * 0.72, size * 0.16, thick, colour);
+        Draw.roundRect(gfx, x + size * 0.18, y + size * 0.34, size * 0.42, thick, thick / 2, colour);
+        Draw.roundRect(gfx, x + size * 0.18, y + size * 0.52, size * 0.26, thick, thick / 2, colour);
     }
 
     /** Crossed swords. */
