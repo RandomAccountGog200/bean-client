@@ -120,7 +120,13 @@ public final class Trackers {
             flushPlaytime();
             currentServer = server;
             serverJoinedAt = server.isEmpty() ? 0 : System.currentTimeMillis();
+            return;
         }
+        // Bank on the way past, not only on the way out. flushPlaytime() is a
+        // no-op until a whole minute has accrued, so calling it every tick costs
+        // a subtraction, and a crash or an alt-F4 now loses under a minute
+        // instead of the entire session.
+        flushPlaytime();
     }
 
     /** Banks the elapsed minutes for the server we are on or leaving. */

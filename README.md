@@ -5,18 +5,23 @@ menu you open with Right Shift to browse modules, flip toggles, and re-skin the 
 thing from JSON theme files.
 
 **Every module works.** There is no placeholder list — if a row is in the menu, toggling
-it changes something.
+it changes something. There are **37 of them** across eight tabs.
 
-They all share one property: each reads state the vanilla client already has and draws it
-on your own screen, or moves a vanilla option you could have moved yourself. Nothing is
-sent to the server, nothing is automated on your behalf, and nothing reveals what the game
-did not already send you.
+They fall into two groups, and the difference matters more than the tab names:
 
-**There are no mixins.** Nothing here reaches into the render or network path, which is
-both a design decision and the reason the client cannot do the things below.
-That is why there is no Combat tab — aim assistance, movement exploits and
-see-through-walls rendering only pay off by taking something from the other people on the
-server, and they are not going to appear here.
+- **HUD, Visual, SMP and Misc** read state the vanilla client already has and draw it on
+  your own screen, or move a vanilla option you could have moved yourself. Nothing is sent
+  to the server and nothing is automated on your behalf.
+- **Combat, Movement and Render** do none of that. They act for you, they show you what
+  the client had decided not to draw, and several of them tell the server something that
+  is not true. Any server running an anticheat is looking for exactly these, and on most
+  servers using them is against the rules. They are here because they were asked for.
+
+**There are still no mixins.** Every module goes through a public API — an entity
+attribute, a packet the client already sends, or a projection onto the HUD. That is a real
+constraint rather than a boast: it is why Reach cannot make a hit land (the server keeps
+its own copy of the interaction-range attribute and validates against it), and why there
+is no x-ray or true fullbright, both of which need the block-render and lightmap paths.
 
 ![HUD tab](docs/gui-hud.png)
 
@@ -65,11 +70,12 @@ change the setting:
 **Title bar** — the bean logo and name on the left; the active theme and the module
 count on the right; the close button. Grab anywhere along it to drag the window.
 
-**Category rail** (left) — five tabs, each with an icon: HUD, Visual, SMP, Misc and
-Themes. The selected one is filled with the accent colour by a pill that slides between
-tabs; hovering lights the others up.
+**Category rail** (left) — eight tabs, each with an icon: HUD, Combat, Movement, Render,
+Visual, SMP, Misc and Themes. The selected one is filled with the accent colour by a pill
+that slides between tabs; hovering lights the others up. The rail divides its height by the
+number of tabs, so adding one shrinks the rows rather than overflowing.
 
-**Module list** (right) — the rows for whichever tab you are on, six per category. Each
+**Module list** (right) — the rows for whichever tab you are on. Each
 row shows its name, a settings icon if it has settings, and a toggle switch. Switching a module
 on tints the row, slides the toggle across, and lights an accent bar down its left edge.
 
@@ -122,8 +128,9 @@ turns it off. That is a per-theme setting, not a hardcoded look.
 
 ### What the modules do
 
-All twenty, by tab. [MODULES.md](MODULES.md) has the settings, defaults and config keys,
-generated straight from the registry so it cannot drift from the code.
+All thirty-seven, by tab. [MODULES.md](MODULES.md) has the settings, defaults and config
+keys, and is generated straight from the registry by `tools/gen_modules.py`, so it cannot
+drift from the code.
 
 **HUD** — readouts drawn on your own screen
 
@@ -142,6 +149,42 @@ generated straight from the registry so it cannot drift from the code.
 | **Armour HUD** | Your armour and held item with durability left. |
 | **Effects HUD** | Your potion effects and how long they have. |
 | **Server Info** | Which server you are on, and how many players are online. |
+
+**Combat** — acts on your behalf
+
+| | |
+| --- | --- |
+| **Killaura** | Attacks the nearest target on a timer. Rotation is real — your camera turns, and the server is told what you are shown. |
+| **Trigger Bot** | Attacks whatever your crosshair is already on. You still aim it, which makes it the tamer of the two. |
+| **Criticals** | Two small position packets before a swing, so the hit lands while the server has you fractionally airborne. |
+| **Auto Clicker** | Clicks at a set rate while you hold the attack button, with optional jitter. |
+| **Reach** | Lengthens the client's interaction raycast via the entity-interaction-range attribute. The server validates against its own copy, so past vanilla range the attack is dropped — it changes what you can aim at, not what lands. |
+| **Auto Totem** | Moves a totem into your off hand when your health drops, using the same container clicks the inventory screen sends. |
+
+**Movement** — changes how you move, and what the server hears about it
+
+| | |
+| --- | --- |
+| **Sprint** | Sprints whenever you are walking forward. |
+| **Step** | Walks up a full block, via the vanilla step-height attribute — so the physics that follow are the ones vanilla would have run. |
+| **Fly** | Zeroes gravity with an attribute modifier and drives your motion from the movement keys. |
+| **Speed** | Scales your horizontal motion after vanilla has computed it. Compounds, and is the loudest thing here. |
+| **Velocity** | Damps knockback on either axis. |
+| **No Fall** | Claims to be on the ground while falling. It does not stop fall damage — it changes what the server thinks it is adding up. |
+
+**Render** — draws what the client knew but had decided not to show you
+
+| | |
+| --- | --- |
+| **ESP** | Boxes around entities, optionally filled, tinted green-to-red by health. |
+| **Tracers** | Lines from the bottom of the screen to each target. |
+| **Name Tags** | Names, health and distance above every entity, through walls. |
+| **Item ESP** | Labels dropped items with their name and stack size. |
+| **Player Radar** | A top-down radar, rotated so your facing is up. Shares the bottom-right corner with the Effects HUD. |
+
+None of these ask the server for anything. An entity only appears if the server already
+sent it, so render distance and whatever the server declines to transmit both still apply.
+What they remove is the wall in front of it.
 
 **Visual** — how your own client renders
 
@@ -165,16 +208,21 @@ generated straight from the registry so it cannot drift from the code.
 | **FPS Limiter** | Caps your frame rate, and puts the vanilla setting back when you switch it off. |
 | **Toggle Sounds** | A click when you toggle a module, pitched up for on and down for off. |
 
-### What is deliberately not here
+### What is still not here
 
-No aimbot, killaura, auto-crystal, auto-totem or reach. No speed, no-slow, step, velocity
-or no-fall. No ESP, chams, x-ray, chest or storage highlighting, freecam, or chunk
-analysis for finding bases. Earlier versions listed some of these as placeholder rows;
-they are gone rather than left as labels that never do anything.
+**X-ray** and a *true* fullbright. Both need to reach into the block-render or lightmap
+path, and 26.2 replaced that whole pipeline with a submit-node model — doing either
+properly means mixins and shader work, which is a much larger job than everything above
+combined. The Brightness module covers the vanilla-capped case.
 
-Those all work by giving you information or actions the game did not hand you, at the
-expense of the other people on the server. Everything above works whether or not anyone
-else is playing, which is the test.
+Nothing is built here specifically to defeat an anticheat. The modules are written as
+ordinary game features; where a server checks something, it catches them. Reach is the
+plainest illustration — it is implemented, it works client-side, and the server simply
+throws the result away.
+
+An earlier version of this client refused the whole Combat / Movement / Render category on
+principle, and the reasoning was not wrong: these only pay off by taking something from the
+other people on the server. That is worth knowing before you turn one on.
 
 ---
 
@@ -184,7 +232,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.3.0.jar` in there too.
+3. Drop `bean-client-1.4.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -195,7 +243,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.3.0.jar`.
+The jar lands in `build/libs/bean-client-1.4.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
@@ -241,9 +289,25 @@ registerModule("Fullbright", Category.VISUAL, enabled -> {
 - Read values back with `module.settings().get(0).value()` / `.boolValue()` /
   `.modeValue()`.
 
-The placeholder rows are all in
+Every row the client ships is registered in
 [`DefaultModules.java`](src/main/java/club/bean/client/module/DefaultModules.java) —
-delete what you do not want and register your own.
+delete what you do not want and register your own. That file is only the table; the
+behaviour lives in `feature/` for the stateful modules and in `hud/ClientHud.java` for
+the readouts, which are pure draw code gated on a toggle.
+
+If a setting has to bite as you drag it rather than on the next toggle, add a listener
+for it — that is how the FPS Limiter's slider works:
+
+```java
+registerModule("FPS Limiter", Category.MISC, enabled -> FrameLimit.apply(), "...")
+        .setting(Setting.slider("Limit", 60, 10, 260, 0))
+        .onSettingChange(setting -> FrameLimit.apply());
+```
+
+One caveat worth knowing before you wire anything up: a toggle restored from the config
+at startup does **not** fire its listener, because registration restores state rather than
+replaying it. Modules that act on tick do not care. Modules that act on toggle have to be
+applied once by hand — `BeanClient.bootstrap()` is where that happens.
 
 ### Adding a category
 
@@ -267,7 +331,7 @@ COMBAT("Combat", new String[] {
 ```
 
 That second argument is a 9×9 pixel mask — `#` is on, anything else is off — and it is
-the easy path. The seven built-in categories instead pass no mask and are drawn as
+the easy path. The five built-in categories instead pass no mask and are drawn as
 vectors in [`Icons.java`](src/main/java/club/bean/client/gui/Icons.java) out of circles,
 rings, rotated bars and polygons, which is what keeps them smooth at every GUI scale. To
 give your category the same treatment, drop the mask and add a case to
@@ -349,6 +413,14 @@ slider handles, the colour-picker cursor, all seven category icons, and the bean
 along its long axis). Nothing is a texture, which is why every shape picks up the theme's
 colours for free.
 
+**The Render tab has no renderer.** Minecraft 26.2 replaced the old world-render hooks
+with a submit-node pipeline, and Fabric API no longer ships a "draw in the world" event. So
+ESP does not draw in the world at all: `Projection` takes the camera's position, its three
+basis vectors and its vertical field of view, puts each corner of an entity's bounding box
+through a perspective divide, and the result is a flat rectangle drawn on the HUD by the
+same `Draw` filler as everything else. It costs one projection per entity, picks up the
+theme for free, and needed no mixin — which is the whole reason the client still has none.
+
 **Animation runs off the wall clock**, not tick counts, so it looks the same at 20 FPS and
 at 300 — and keeps animating while the game itself is paused on a server screen. The
 window fades, scales and rises on open; the rail's selection pill slides between tabs and
@@ -363,10 +435,24 @@ src/main/java/club/bean/client/
 ├── BeanConfig.java          flat JSON config, debounced writes
 ├── module/
 │   ├── Category.java        the rail tabs + their 9x9 icons
-│   ├── Module.java          name, category, boolean, callback
+│   ├── Module.java          name, category, boolean, callbacks
 │   ├── Setting.java         toggle / slider / mode
+│   ├── Settings.java        reads a module's values by name
 │   ├── ModuleRegistry.java  registerModule() — the seam
-│   └── DefaultModules.java  the placeholder rows
+│   └── DefaultModules.java  the registration table for all twenty
+├── feature/
+│   ├── VanillaOption.java   borrows a vanilla option and gives it back
+│   ├── AttributeHold.java   the same idea for an entity attribute
+│   ├── Zoom.java            hold-to-zoom via the FOV slider
+│   ├── Brightness.java      the gamma slider on a toggle
+│   ├── FrameLimit.java      the frame cap, same borrow-and-return
+│   ├── Clicks.java          CPS ring buffer — counts, never clicks
+│   ├── Trackers.java        speed, deaths, per-server playtime
+│   ├── ChatFilter.java      duplicate/link filter on delivered chat
+│   ├── Targets.java         who counts as a target, in one place
+│   ├── Combat.java          the Combat tab; one method does the swinging
+│   ├── Movement.java        the Movement tab; attributes vs raw motion
+│   └── AutoTotem.java       container clicks, not item moves
 ├── theme/
 │   ├── Theme.java           one skin, parsed with derived defaults
 │   ├── ThemeManager.java    loads themes/, tracks the live one
@@ -381,6 +467,9 @@ src/main/java/club/bean/client/
 │   ├── Icons.java           the vector icon set
 │   └── Anim.java            frame-rate independent easing
 └── hud/
+    ├── ClientHud.java       every readout module, drawn in-game
+    ├── Projection.java      world position → point on the HUD
+    ├── WorldEsp.java        the Render tab, drawn in 2D
     └── BeanHudOverlay.java  HUD host for the close animation
 ```
 

@@ -1,8 +1,6 @@
 package club.bean.client.feature;
 
-import club.bean.client.module.Module;
-import club.bean.client.module.ModuleRegistry;
-import club.bean.client.module.Setting;
+import club.bean.client.module.Settings;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayDeque;
@@ -22,10 +20,14 @@ public final class ChatFilter {
     private ChatFilter() {
     }
 
+    /** Drops the seen-message ring, so anything hidden shows up again. */
+    public static void forget() {
+        RECENT.clear();
+    }
+
     /** @return false to swallow the message */
     public static boolean allow(Component message) {
-        Module module = ModuleRegistry.get("chat_filter");
-        if (module == null || !module.isEnabled() || message == null) {
+        if (message == null || !Settings.enabled("chat_filter")) {
             return true;
         }
         String text = message.getString();
@@ -33,7 +35,7 @@ public final class ChatFilter {
             return true;
         }
 
-        if (option(module, "Hide duplicates", true)) {
+        if (Settings.flag("chat_filter", "Hide duplicates", true)) {
             String key = text.trim().toLowerCase(Locale.ROOT);
             if (RECENT.contains(key)) {
                 return false;
@@ -44,20 +46,11 @@ public final class ChatFilter {
             }
         }
 
-        return !(option(module, "Hide links", false) && hasLink(text));
+        return !(Settings.flag("chat_filter", "Hide links", false) && hasLink(text));
     }
 
     private static boolean hasLink(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
         return lower.contains("discord.gg/") || lower.contains("http://") || lower.contains("https://");
-    }
-
-    private static boolean option(Module module, String name, boolean fallback) {
-        for (Setting setting : module.settings()) {
-            if (setting.name().equalsIgnoreCase(name) && setting.type() == Setting.Type.TOGGLE) {
-                return setting.boolValue();
-            }
-        }
-        return fallback;
     }
 }

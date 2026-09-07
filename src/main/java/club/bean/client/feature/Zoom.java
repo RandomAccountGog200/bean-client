@@ -1,8 +1,6 @@
 package club.bean.client.feature;
 
-import club.bean.client.module.Module;
-import club.bean.client.module.ModuleRegistry;
-import club.bean.client.module.Setting;
+import club.bean.client.module.Settings;
 import net.minecraft.client.Minecraft;
 
 /**
@@ -20,39 +18,32 @@ import net.minecraft.client.Minecraft;
 public final class Zoom {
     private static final int MIN_FOV = 30;
 
-    private static final VanillaOption<Integer> FOV =
-            new VanillaOption<>("FOV", () -> Minecraft.getInstance().options.fov());
+    private static final VanillaOption<Integer> FOV = new VanillaOption<>(
+            "FOV", "vanilla.fov",
+            () -> Minecraft.getInstance().options.fov(),
+            value -> (int) Math.round(value));
 
     private static boolean held;
 
     private Zoom() {
     }
 
+    /** Puts the FOV back if a previous session died mid-zoom. */
+    public static void init() {
+        FOV.recover();
+    }
+
     public static void setHeld(boolean value) {
         held = value;
     }
 
-    private static boolean isEnabled() {
-        Module module = ModuleRegistry.get("zoom");
-        return module != null && module.isEnabled();
-    }
-
     private static double factor() {
-        Module module = ModuleRegistry.get("zoom");
-        if (module == null) {
-            return 2;
-        }
-        for (Setting setting : module.settings()) {
-            if (setting.name().equalsIgnoreCase("Factor")) {
-                return Math.max(1.0, setting.value());
-            }
-        }
-        return 2;
+        return Math.max(1.0, Settings.number("zoom", "Factor", 2));
     }
 
     /** Called every client tick. */
     public static void tick() {
-        if (!isEnabled() || !held) {
+        if (!Settings.enabled("zoom") || !held) {
             FOV.restore();
             return;
         }

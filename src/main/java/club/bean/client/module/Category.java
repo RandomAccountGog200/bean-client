@@ -6,14 +6,23 @@ package club.bean.client.module;
  * <p>Adding a category is a one-line change here — the rail, the search filter
  * and the module list all iterate {@link #values()}.
  *
- * <p>The seven built-ins are drawn as vectors by {@code Icons}, so they stay
+ * <p>The eight built-ins are drawn as vectors by {@code Icons}, so they stay
  * smooth at any GUI scale. A category added with the second constructor
  * supplies a 9x9 pixel mask instead ({@code '#'} is on), which is a lot less
  * work than drawing vectors and is all most people will want.
+ *
+ * <p>The rail divides its height by {@code values().length}, so adding one here
+ * shrinks the rows rather than overflowing - see {@code BeanGui.railRowH()}.
  */
 public enum Category {
     /** Readouts drawn on your own screen. */
     HUD("HUD"),
+    /** Anything that swings at something. */
+    COMBAT("Combat"),
+    /** How you move through the world. */
+    MOVEMENT("Movement"),
+    /** Drawing things the world did not draw for you. */
+    RENDER("Render"),
     /** How your own client renders the world. */
     VISUAL("Visual"),
     /** Server quality of life - built for DonutSMP, useful on any SMP. */

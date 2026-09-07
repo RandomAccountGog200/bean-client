@@ -5,7 +5,7 @@ import club.bean.client.feature.Trackers;
 import club.bean.client.gui.Draw;
 import club.bean.client.module.Module;
 import club.bean.client.module.ModuleRegistry;
-import club.bean.client.module.Setting;
+import club.bean.client.module.Settings;
 import club.bean.client.theme.Colours;
 import club.bean.client.theme.Theme;
 import club.bean.client.theme.ThemeManager;
@@ -61,6 +61,10 @@ public final class ClientHud {
         Theme theme = ThemeManager.current();
         Font font = mc.font;
 
+        // World overlay first, so the readout panels sit on top of it
+        // rather than being crossed by tracers.
+        WorldEsp.render(gfx, mc, font, theme);
+
         int top = 6;
         if (on("watermark")) {
             drawWatermark(gfx, font, theme, 6, top);
@@ -76,34 +80,15 @@ public final class ClientHud {
     // ---- module helpers ---------------------------------------------------
 
     private static boolean on(String id) {
-        Module module = ModuleRegistry.get(id);
-        return module != null && module.isEnabled();
+        return Settings.enabled(id);
     }
 
     private static boolean option(String moduleId, String settingName, boolean fallback) {
-        Module module = ModuleRegistry.get(moduleId);
-        if (module == null) {
-            return fallback;
-        }
-        for (Setting setting : module.settings()) {
-            if (setting.name().equalsIgnoreCase(settingName) && setting.type() == Setting.Type.TOGGLE) {
-                return setting.boolValue();
-            }
-        }
-        return fallback;
+        return Settings.flag(moduleId, settingName, fallback);
     }
 
     private static String mode(String moduleId, String settingName, String fallback) {
-        Module module = ModuleRegistry.get(moduleId);
-        if (module == null) {
-            return fallback;
-        }
-        for (Setting setting : module.settings()) {
-            if (setting.name().equalsIgnoreCase(settingName) && setting.type() == Setting.Type.MODE) {
-                return setting.modeValue();
-            }
-        }
-        return fallback;
+        return Settings.mode(moduleId, settingName, fallback);
     }
 
     // ---- panels -----------------------------------------------------------

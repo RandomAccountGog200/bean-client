@@ -28,6 +28,9 @@ public final class Icons {
         }
         switch (category) {
             case HUD -> hudIcon(gfx, x, y, size, colour);
+            case COMBAT -> combat(gfx, x, y, size, colour);
+            case MOVEMENT -> movement(gfx, x, y, size, colour);
+            case RENDER -> world(gfx, x, y, size, colour);
             case VISUAL -> visual(gfx, x, y, size, colour);
             case SMP -> smp(gfx, x, y, size, colour);
             case MISC -> misc(gfx, x, y, size, colour);

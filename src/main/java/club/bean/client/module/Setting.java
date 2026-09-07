@@ -8,10 +8,14 @@ import java.util.Locale;
 /**
  * One row inside a module's settings drawer.
  *
- * <p>Three shapes cover everything the shell needs to draw: a checkbox, a
- * slider and a left/right mode cycler. Values persist to the config under
- * {@code setting.<module>.<setting>} - the shell has no logic of its own, but a
- * real module wired in later gets its settings restored for free.
+ * <p>Three shapes cover everything the GUI needs to draw: a checkbox, a slider
+ * and a left/right mode cycler. Values persist to the config under
+ * {@code setting.<module>.<setting>}, so a module's settings come back exactly
+ * as they were left.
+ *
+ * <p>A change is written straight to the config and then handed to the owning
+ * module via {@link Module#onSettingChange}, which is how a slider takes effect
+ * as you drag it rather than on the next toggle.
  */
 public final class Setting {
     public enum Type { TOGGLE, SLIDER, MODE }
@@ -153,10 +157,9 @@ public final class Setting {
     private void persist() {
         BeanConfig.saveSoon();
         if (owner != null) {
+            // The module decides what a change means - a Setting never knows
+            // which module it belongs to beyond the config key.
             owner.onSettingChanged(this);
-            if (owner.id().equals("fps_limiter")) {
-                DefaultModules.onFrameLimitChanged();
-            }
         }
     }
 

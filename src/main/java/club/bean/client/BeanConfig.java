@@ -80,6 +80,11 @@ public final class BeanConfig {
         }
     }
 
+    /** True when any of the three maps holds this key, whatever its type. */
+    public static boolean has(String key) {
+        return BOOLS.containsKey(key) || NUMBERS.containsKey(key) || STRINGS.containsKey(key);
+    }
+
     public static void remove(String key) {
         BOOLS.remove(key);
         NUMBERS.remove(key);

@@ -27,11 +27,19 @@ public final class Module {
         void onToggle(boolean enabled);
     }
 
+    /** Notified whenever one of this module's settings moves. */
+    @FunctionalInterface
+    public interface SettingListener {
+        void onSettingChanged(Setting setting);
+    }
+
     private final String name;
     private final String id;
     private final Category category;
     private final ToggleListener onToggle;
     private final List<Setting> settings = new ArrayList<>();
+
+    private SettingListener onSettingChange;
 
     private String description = "";
     private boolean enabled;
@@ -75,6 +83,25 @@ public final class Module {
     public Module setting(Setting setting) {
         settings.add(setting);
         setting.attach(this);
+        return this;
+    }
+
+    /**
+     * Registers a listener for setting changes and returns {@code this}, so it
+     * chains after the settings it watches:
+     *
+     * <pre>{@code
+     * registerModule("FPS Limiter", Category.MISC, on -> FrameLimit.apply(), ...)
+     *         .setting(Setting.slider("Limit", 60, 10, 260, 0))
+     *         .onSettingChange(setting -> FrameLimit.apply());
+     * }</pre>
+     *
+     * <p>Without this a slider would only take effect on the next toggle, which
+     * is why {@link Setting} routes every change back through the owning module
+     * rather than knowing about any particular one.
+     */
+    public Module onSettingChange(SettingListener listener) {
+        this.onSettingChange = listener;
         return this;
     }
 
@@ -138,5 +165,8 @@ public final class Module {
 
     void onSettingChanged(Setting setting) {
         ModuleRegistry.logSettingChange(this, setting);
+        if (onSettingChange != null) {
+            onSettingChange.onSettingChanged(setting);
+        }
     }
 }

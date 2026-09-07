@@ -3,7 +3,7 @@
   "id": "beanclient",
   "version": "${version}",
   "name": "Bean Client",
-  "description": "A bean-themed click-GUI shell for Fabric. Ships the whole window - category rail, module rows, settings drawers, live search, drag/resize, and a JSON theming system - with no module logic behind it. Wire your own features in with registerModule().",
+  "description": "A bean-themed click-GUI for Fabric: a coffee-coloured in-game menu with a category rail, module rows, settings drawers, live search, drag/resize and JSON theming. 37 modules across eight tabs - HUD readouts and SMP quality of life, plus Combat, Movement and Render. No mixins: everything goes through a public API.",
   "authors": ["Bean Client"],
   "contact": {
     "homepage": "https://github.com/RandomAccountGog200/bean-client",
