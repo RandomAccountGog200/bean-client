@@ -5,7 +5,7 @@ menu you open with Right Shift to browse modules, flip toggles, and re-skin the 
 thing from JSON theme files.
 
 **Every module works.** There is no placeholder list — if a row is in the menu, toggling
-it changes something. There are **37 of them** across eight tabs.
+it changes something. There are **38 of them** across eight tabs.
 
 They fall into two groups, and the difference matters more than the tab names:
 
@@ -128,7 +128,7 @@ turns it off. That is a per-theme setting, not a hardcoded look.
 
 ### What the modules do
 
-All thirty-seven, by tab. [MODULES.md](MODULES.md) has the settings, defaults and config
+All thirty-eight, by tab. [MODULES.md](MODULES.md) has the settings, defaults and config
 keys, and is generated straight from the registry by `tools/gen_modules.py`, so it cannot
 drift from the code.
 
@@ -160,6 +160,7 @@ drift from the code.
 | **Auto Clicker** | Clicks at a set rate while you hold the attack button, with optional jitter. |
 | **Reach** | Lengthens the client's interaction raycast via the entity-interaction-range attribute. The server validates against its own copy, so past vanilla range the attack is dropped — it changes what you can aim at, not what lands. |
 | **Auto Totem** | Moves a totem into your off hand when your health drops, using the same container clicks the inventory screen sends. |
+| **Crystal Aura** | Places end crystals next to a target and breaks them. Scores every legal position by what the blast would do to them and to you, and acts on the best one clearing both thresholds. |
 
 **Movement** — changes how you move, and what the server hears about it
 
@@ -232,7 +233,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.20.0.jar` in there too.
+3. Drop `bean-client-1.21.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -243,7 +244,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.20.0.jar`.
+The jar lands in `build/libs/bean-client-1.21.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
@@ -421,6 +422,15 @@ through a perspective divide, and the result is a flat rectangle drawn on the HU
 same `Draw` filler as everything else. It costs one projection per entity, picks up the
 theme for free, and needed no mixin — which is the whole reason the client still has none.
 
+**Crystal Aura borrows vanilla's own maths rather than approximating it.** The placement
+rules are read straight out of `EndCrystalItem.useOn`, because a client-side filter that
+disagrees with the server either sends placements that bounce or quietly loses positions
+that would have worked. The damage estimate uses vanilla's explosion formula with the real
+`ServerExplosion.getSeenPercent` — which is public, static, and needs only the entity's own
+level — so exposure is exact, and a crystal behind a block is correctly worth nothing. It
+is still an upper bound: enchantment protection needs a `ServerLevel` the client does not
+have, so it is left out.
+
 **Animation runs off the wall clock**, not tick counts, so it looks the same at 20 FPS and
 at 300 — and keeps animating while the game itself is paused on a server screen. The
 window fades, scales and rises on open; the rail's selection pill slides between tabs and
@@ -452,7 +462,8 @@ src/main/java/club/bean/client/
 │   ├── Targets.java         who counts as a target, in one place
 │   ├── Combat.java          the Combat tab; one method does the swinging
 │   ├── Movement.java        the Movement tab; attributes vs raw motion
-│   └── AutoTotem.java       container clicks, not item moves
+│   ├── AutoTotem.java       container clicks, not item moves
+│   └── CrystalAura.java     place/break search with a damage model
 ├── theme/
 │   ├── Theme.java           one skin, parsed with derived defaults
 │   ├── ThemeManager.java    loads themes/, tracks the live one

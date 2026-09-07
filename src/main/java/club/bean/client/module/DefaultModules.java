@@ -123,6 +123,18 @@ public final class DefaultModules {
                                 + "copy, so past vanilla range the attack is simply dropped.")
                 .setting(Setting.slider("Extra blocks", 1.0, 0, 3, 1));
 
+        module("Crystal Aura", Category.COMBAT, enabled -> {},
+                        "Places end crystals next to a target and breaks them. Scores every legal "
+                                + "position by what the blast would do to them and to you, and acts "
+                                + "on the best one that clears both thresholds.")
+                .setting(Setting.slider("Range", 4.5, 3, 6, 1))
+                .setting(Setting.slider("Target range", 12, 4, 16, 0))
+                .setting(Setting.slider("Min damage", 6, 1, 20, 0))
+                .setting(Setting.slider("Max self damage", 8, 0, 20, 0))
+                .setting(Setting.slider("Delay", 50, 0, 500, 0))
+                .setting(Setting.toggle("Place", true))
+                .setting(Setting.toggle("Break", true));
+
         module("Auto Totem", Category.COMBAT, AutoTotem::onToggle,
                         "Moves a totem to your off hand when your health drops, using ordinary "
                                 + "container clicks.")

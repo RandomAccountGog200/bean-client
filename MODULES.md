@@ -20,18 +20,18 @@ attribute, a packet the client already sends, or a projection onto the HUD — w
 is a real constraint on what these can do. Reach is the clearest case: it lengthens
 the client raycast, and the server throws the result away.
 
-There are **37 modules** across 7 categories.
+There are **38 modules** across 7 categories.
 
 | Category | Modules | Settings |
 | --- | ---: | ---: |
 | [HUD](#hud) | 13 | 2 |
-| [Combat](#combat) | 6 | 11 |
+| [Combat](#combat) | 7 | 18 |
 | [Movement](#movement) | 6 | 5 |
 | [Render](#render) | 5 | 13 |
 | [Visual](#visual) | 2 | 2 |
 | [SMP](#smp) | 3 | 2 |
 | [Misc](#misc) | 2 | 1 |
-| **Total** | **37** | **36** |
+| **Total** | **38** | **43** |
 
 ---
 
@@ -66,6 +66,7 @@ _Acts on your behalf. Every one of these is what an anticheat is looking for._
 | **Criticals**<br>`module.criticals` | Two small position packets before a swing, so the hit lands while the server has you airborne. | _none_ |
 | **Auto Clicker**<br>`module.auto_clicker` | Clicks at a set rate while you hold the attack button down. | `CPS` — slider 1–20, default 10<br>`Jitter` — toggle, default true |
 | **Reach**<br>`module.reach` | Lengthens the client interaction raycast. The server validates against its own copy, so past vanilla range the attack is simply dropped. | `Extra blocks` — slider 0–3, default 1.0 |
+| **Crystal Aura**<br>`module.crystal_aura` | Places end crystals next to a target and breaks them. Scores every legal position by what the blast would do to them and to you, and acts on the best one that clears both thresholds. | `Range` — slider 3–6, default 4.5<br>`Target range` — slider 4–16, default 12<br>`Min damage` — slider 1–20, default 6<br>`Max self damage` — slider 0–20, default 8<br>`Delay` — slider 0–500, default 50<br>`Place` — toggle, default true<br>`Break` — toggle, default true |
 | **Auto Totem**<br>`module.auto_totem` | Moves a totem to your off hand when your health drops, using ordinary container clicks. | `Health` — slider 1–20, default 10 |
 
 ## Movement

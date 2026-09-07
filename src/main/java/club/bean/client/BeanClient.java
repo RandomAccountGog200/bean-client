@@ -4,6 +4,7 @@ import club.bean.client.feature.AutoTotem;
 import club.bean.client.feature.Brightness;
 import club.bean.client.feature.ChatFilter;
 import club.bean.client.feature.Combat;
+import club.bean.client.feature.CrystalAura;
 import club.bean.client.feature.FrameLimit;
 import club.bean.client.feature.Movement;
 import club.bean.client.feature.Trackers;
@@ -131,6 +132,7 @@ public class BeanClient implements ClientModInitializer {
             Zoom.tick();
             Brightness.tick();
             Combat.tick(mc);
+            CrystalAura.tick(mc);
             Movement.tick(mc);
             AutoTotem.tick(mc);
         }
