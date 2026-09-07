@@ -232,7 +232,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.4.0.jar` in there too.
+3. Drop `bean-client-1.20.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -243,7 +243,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.4.0.jar`.
+The jar lands in `build/libs/bean-client-1.20.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods
