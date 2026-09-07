@@ -35,6 +35,8 @@ public final class Module {
 
     private String description = "";
     private boolean enabled;
+    /** True when this module is wired to real behaviour rather than a log line. */
+    private boolean working;
 
     /** Per-row drawer state, owned by the module so it survives category switches. */
     private boolean expanded;
@@ -64,6 +66,16 @@ public final class Module {
 
     public String description() {
         return description;
+    }
+
+    /** Marks this module as actually implemented; the GUI badges it. */
+    public Module working() {
+        this.working = true;
+        return this;
+    }
+
+    public boolean isWorking() {
+        return working;
     }
 
     public Module description(String text) {

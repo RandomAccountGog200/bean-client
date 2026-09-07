@@ -23,13 +23,18 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 public final class BeanHudOverlay implements HudElement {
     @Override
     public void extractRenderState(GuiGraphicsExtractor gfx, DeltaTracker delta) {
-        // Nothing to do while the GUI is open (the screen is drawing it) or once
-        // the fade has finished.
-        if (BeanGui.isOpen() || !BeanGui.isVisible()) {
-            return;
-        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
+            return;
+        }
+
+        // The in-game overlay: watermark, readouts, module list.
+        ClientHud.render(gfx, mc);
+
+        // The closing window, for the frames after the screen is gone. Nothing
+        // to do while the GUI is open - the screen is drawing it - or once the
+        // fade has finished.
+        if (BeanGui.isOpen() || !BeanGui.isVisible()) {
             return;
         }
         // -1 keeps every hover highlight off; the cursor is the game's again.

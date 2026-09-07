@@ -17,6 +17,8 @@ public enum Category {
     VISUAL("Visual"),
     PLAYER("Player"),
     WORLD("World"),
+    /** Server-side quality of life - built for DonutSMP, useful on any SMP. */
+    SMP("SMP"),
     MISC("Misc"),
     /**
      * The one category that does not list modules. The main panel swaps to the

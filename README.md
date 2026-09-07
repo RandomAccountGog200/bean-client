@@ -4,10 +4,13 @@ A bean-themed click-GUI for Minecraft **26.2** (Fabric) — a coffee-coloured in
 menu you open with Right Shift to browse modules, flip toggles, and re-skin the whole
 thing from JSON theme files.
 
-**Read this bit first:** Bean Client is the *window*, not the client. The interface is
-complete and finished, but there is deliberately **no module logic behind it**. Every
-toggle flips a boolean and writes a line to the log — nothing named in the menu is
-implemented. It is a shell to build a client *in*, not a client.
+**Read this bit first:** Bean Client is mostly the *window*, not the client. The
+interface is complete; the module list mostly is not. Six of the sixty modules are wired
+to real behaviour — the HUD, the readouts, and the frame-rate cap — and carry a dot next
+to their name. **Every other row flips a boolean and writes a line to the log.**
+
+Combat automation, movement exploits and anything that would show you what the game did
+not are placeholders, and they stay that way. They are labels in a menu.
 
 ![Combat tab](docs/gui-combat.png)
 
@@ -43,14 +46,22 @@ Where you put the window and how big you made it are saved, along with which tab
 were on, which theme is active, and every toggle and setting. It all comes back the
 way you left it next time you launch.
 
+The window sizes itself to your **GUI Scale**. Minecraft's GUI coordinate space is
+1920x1080 units at scale 1 but only 480x270 at scale 4, so a window with a size fixed in
+those units is either lost on a big screen or larger than a small one. Bean Client takes a
+share of whatever space there is, and carries your size across proportionally when you
+change the setting:
+
+![GUI scales](docs/gui-scales.png)
+
 ### The layout
 
 **Title bar** — the bean logo and name on the left; the active theme and the module
 count on the right; the close button. Grab anywhere along it to drag the window.
 
-**Category rail** (left) — seven tabs, each with an icon: Combat, Movement, Visual,
-Player, World, Misc, and Themes. The selected one is filled with the accent colour;
-hovering lights the others up.
+**Category rail** (left) — eight tabs, each with an icon: Combat, Movement, Visual,
+Player, World, SMP, Misc, and Themes. The selected one is filled with the accent colour
+by a pill that slides between tabs; hovering lights the others up.
 
 **Module list** (right) — the rows for whichever tab you are on, six per category. Each
 row shows its name, a settings icon if it has settings, and a toggle switch. Switching a module
@@ -96,22 +107,38 @@ Three themes ship with it. Here is the same GUI under the other two — `classic
 (neutral slate, blue accent, tighter corners, no bean motif) and `midnight_mocha`
 (violet, radius 12):
 
-| Classic Dark | Midnight Mocha |
+| Classic Dark | Midnight Mocha (SMP tab) |
 | --- | --- |
-| ![Classic Dark](docs/gui-classic-dark.png) | ![Midnight Mocha](docs/gui-midnight-mocha.png) |
+| ![Classic Dark](docs/gui-classic-dark.png) | ![Midnight Mocha](docs/gui-smp.png) |
 
 The bean theme paints a faint repeating bean silhouette behind the panels; `classic_dark`
 turns it off. That is a per-theme setting, not a hardcoded look.
 
 ### What the modules do
 
-Nothing. Every row in Combat, Movement, Visual, Player, World and Misc is a placeholder.
-Toggling one prints `[shell] Killaura -> ON` to the log and changes no game behaviour
-whatsoever. The names are there to give the layout something realistic to render.
+**Six of them work.** They carry a dot next to their name in the list:
 
-**[MODULES.md](MODULES.md)** lists all 36 of them with their 65 settings, defaults,
-ranges and config keys. It is generated from the registry, so it cannot drift from what
-the client actually registers.
+| Module | Tab | What it does |
+| --- | --- | --- |
+| **HUD** | Visual | Draws the watermark and the enabled-module list. Corner is configurable. |
+| **FPS Display** | Visual | Your frame rate, on the HUD. |
+| **Coordinates** | Visual | Your position, plus the matching Nether coordinates. |
+| **Ping Display** | Visual | Your latency to the server. |
+| **Session Timer** | SMP | How long the session has been running. |
+| **FPS Limiter** | Misc | Actually changes the vanilla frame-rate cap, and restores it when switched off. |
+
+All six read state the vanilla client already has and draw it on your own screen. Nothing
+is sent to the server, and nothing is derived that the client was not already given.
+
+**The other fifty-four are placeholders.** Toggling one prints `[shell] Killaura -> ON`
+to the log and changes no game behaviour whatsoever. That covers everything in Combat,
+Movement and World, and most of Player — deliberately, and permanently. Those are the
+ones whose only purpose is to beat other players using information or actions the game
+never handed you, and they are not going to be implemented here.
+
+**[MODULES.md](MODULES.md)** lists all 60 with their 95 settings, defaults, ranges and
+config keys, and marks which are live. It is generated from the registry, so it cannot
+drift from what the client actually registers.
 
 ---
 
@@ -121,7 +148,7 @@ Requires **Java 25** — Minecraft 26.2 runs on it.
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for Minecraft 26.2.
 2. Drop [Fabric API](https://modrinth.com/mod/fabric-api) for 26.2 into `.minecraft/mods/`.
-3. Drop `bean-client-1.1.0.jar` in there too.
+3. Drop `bean-client-1.2.0.jar` in there too.
 4. Launch, join a world, press **Right Shift**.
 
 Building it yourself:
@@ -132,7 +159,7 @@ cd bean-client
 ./gradlew build
 ```
 
-The jar lands in `build/libs/bean-client-1.1.0.jar`.
+The jar lands in `build/libs/bean-client-1.2.0.jar`.
 
 > Minecraft 26.x ships deobfuscated — Mojang stopped publishing obfuscation maps after
 > 1.21.11 — so `build.gradle` has no `mappings` dependency and no remap step, and mods

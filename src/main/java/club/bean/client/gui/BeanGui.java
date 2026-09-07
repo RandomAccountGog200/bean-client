@@ -20,6 +20,7 @@ public final class BeanGui {
     public static final int PAD = 11;
     public static final int TITLE_H = 36;
     public static final int RAIL_W = 122;
+    public static final int RAIL_W_MIN = 84;
     public static final int RAIL_ROW_H = 28;
     public static final int RAIL_GAP = 3;
     public static final int GUTTER = 9;
@@ -68,6 +69,10 @@ public final class BeanGui {
     /** Seconds elapsed in the last frame, so the renderer can ease hover states. */
     private static float lastDelta = 1f / 60f;
 
+    /** Size of the GUI coordinate space, which changes with the GUI Scale option. */
+    private static int screenW = 640;
+    private static int screenH = 360;
+
     private BeanGui() {
     }
 
@@ -89,12 +94,66 @@ public final class BeanGui {
         BeanConfig.saveSoon();
     }
 
-    /** Nudges the window back on-screen after a resolution change. */
-    public static void clampToScreen(int screenW, int screenH) {
-        width = Anim.clamp(width, MIN_W, Math.max(MIN_W, Math.min(MAX_W, screenW - 8)));
-        height = Anim.clamp(height, MIN_H, Math.max(MIN_H, Math.min(MAX_H, screenH - 8)));
-        x = Anim.clamp(x, 4 - width + 60, Math.max(4, screenW - 60));
-        y = Anim.clamp(y, 4, Math.max(4, screenH - TITLE_H));
+    /**
+     * Sizes and positions the window for the current GUI coordinate space.
+     *
+     * <p>Minecraft's GUI Scale option changes how big that space is - at scale 4
+     * on a 1080p monitor the whole screen is only 480x270 units, and at scale 1
+     * it is 1920x1080. A window with a size fixed in those units therefore spills
+     * off the screen at high scales and looks lost at low ones, which is exactly
+     * the bug this fixes. The size is stored alongside the space it was chosen
+     * in, so changing scale carries it across proportionally instead of leaving
+     * it stranded.
+     */
+    public static void fitTo(int spaceW, int spaceH) {
+        screenW = spaceW;
+        screenH = spaceH;
+
+        int roomW = Math.max(200, spaceW - 12);
+        int roomH = Math.max(150, spaceH - 12);
+        int minW = Math.min(MIN_W, roomW);
+        int minH = Math.min(MIN_H, roomH);
+
+        int lastW = BeanConfig.getInt("gui.fitW", 0);
+        int lastH = BeanConfig.getInt("gui.fitH", 0);
+
+        if (lastW <= 0 || lastH <= 0) {
+            // First run: take a share of whatever space there is.
+            width = Math.round(spaceW * 0.58f);
+            height = Math.round(spaceH * 0.66f);
+            x = (spaceW - width) / 2;
+            y = (spaceH - height) / 2;
+        } else if (lastW != spaceW || lastH != spaceH) {
+            // The scale or the resolution changed - rescale rather than clip.
+            float sx = spaceW / (float) lastW;
+            float sy = spaceH / (float) lastH;
+            width = Math.round(width * sx);
+            height = Math.round(height * sy);
+            x = Math.round(x * sx);
+            y = Math.round(y * sy);
+        }
+
+        width = Anim.clamp(width, minW, Math.min(MAX_W, roomW));
+        height = Anim.clamp(height, minH, Math.min(MAX_H, roomH));
+        clampPosition();
+
+        BeanConfig.setInt("gui.fitW", spaceW);
+        BeanConfig.setInt("gui.fitH", spaceH);
+        BeanConfig.saveSoon();
+    }
+
+    /** Keeps the whole window on screen, without changing its size. */
+    public static void clampPosition() {
+        x = Anim.clamp(x, 4, Math.max(4, screenW - width - 4));
+        y = Anim.clamp(y, 4, Math.max(4, screenH - height - 4));
+    }
+
+    /**
+     * The rail narrows on a cramped screen so the module list keeps a usable
+     * width. At any normal size it stays at its full {@link #RAIL_W}.
+     */
+    public static int railW() {
+        return Math.min(RAIL_W, Math.max(RAIL_W_MIN, width - 300));
     }
 
     // ---- open / close -----------------------------------------------------
@@ -295,8 +354,12 @@ public final class BeanGui {
     }
 
     public static void resizeTo(int newW, int newH) {
-        width = Anim.clamp(newW, MIN_W, MAX_W);
-        height = Anim.clamp(newH, MIN_H, MAX_H);
+        // The floor has to yield on small screens, or the window cannot be made
+        // to fit at GUI Scale 4.
+        int minW = Math.min(MIN_W, Math.max(200, screenW - 12));
+        int minH = Math.min(MIN_H, Math.max(150, screenH - 12));
+        width = Anim.clamp(newW, minW, Math.min(MAX_W, Math.max(minW, screenW - 12)));
+        height = Anim.clamp(newH, minH, Math.min(MAX_H, Math.max(minH, screenH - 12)));
         clampScroll();
     }
 
@@ -320,13 +383,24 @@ public final class BeanGui {
         return height - TITLE_H - PAD;
     }
 
+    /**
+     * Height of one rail tab. It shrinks when the window is too short to show
+     * every category at full size - at GUI Scale 4 there is not room for seven
+     * 28px rows, and silently dropping the last tab made Themes unreachable.
+     */
+    public static int railRowH() {
+        int tabs = Category.values().length;
+        int available = railH() - 20;
+        return Anim.clamp(available / tabs - RAIL_GAP, 17, RAIL_ROW_H);
+    }
+
     /** Top of the {@code index}-th tab in the rail. */
     public static int railRowY(int index) {
-        return railY() + 11 + index * (RAIL_ROW_H + RAIL_GAP);
+        return railY() + 10 + index * (railRowH() + RAIL_GAP);
     }
 
     public static int panelX() {
-        return x + PAD + RAIL_W + GUTTER;
+        return x + PAD + railW() + GUTTER;
     }
 
     public static int panelY() {
@@ -334,7 +408,7 @@ public final class BeanGui {
     }
 
     public static int panelW() {
-        return width - PAD * 2 - RAIL_W - GUTTER;
+        return width - PAD * 2 - railW() - GUTTER;
     }
 
     public static int panelH() {

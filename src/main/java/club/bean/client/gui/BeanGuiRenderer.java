@@ -148,14 +148,21 @@ public final class BeanGuiRenderer {
         int h = BeanGui.height();
         double radius = theme.cornerRadius + 2;
 
-        // Soft drop shadow: a few offset rounded rects at low alpha.
-        for (int i = 5; i >= 1; i--) {
-            Draw.roundRect(gfx, x - i, y - i + 3, w + i * 2, h + i * 2, radius + i,
-                    Colours.withAlpha(0xFF000000, 16 - i * 2));
+        // Soft drop shadow. Three layers, drawn aliased - it is a blur at 8%
+        // alpha, so anti-aliasing it would triple the cost of the single
+        // largest shape on screen for something nobody can see.
+        for (int i = 3; i >= 1; i--) {
+            Draw.shapeCheap(gfx, y - i * 2, y + h + i * 2,
+                    Shapes.roundRect(x - i * 2, y - i * 2 + 3, w + i * 4, h + i * 4, radius + i * 2),
+                    Draw.col(Colours.withAlpha(0xFF000000, 20 - i * 4)));
         }
 
         Draw.roundRect(gfx, x, y, w, h, radius, theme.background);
-        Draw.backgroundPattern(gfx, x, y, w, h, theme);
+        // The rail and panel are opaque, so the wallpaper skips whatever they
+        // are about to cover.
+        Draw.backgroundPattern(gfx, x, y, w, h, theme,
+                new int[] { BeanGui.railX(), BeanGui.railY(), BeanGui.railW(), BeanGui.railH() },
+                new int[] { BeanGui.panelX(), BeanGui.panelY(), BeanGui.panelW(), BeanGui.panelH() });
         // Hairline highlight so the window has a defined edge on any backdrop.
         Draw.roundBorder(gfx, x, y, w, h, radius, 1, Colours.withAlpha(theme.text, 26));
 
@@ -225,7 +232,7 @@ public final class BeanGuiRenderer {
         int rx = BeanGui.railX();
         int ry = BeanGui.railY();
         double radius = Math.max(2, theme.cornerRadius);
-        Draw.roundRect(gfx, rx, ry, BeanGui.RAIL_W, BeanGui.railH(), radius, theme.panel);
+        Draw.roundRect(gfx, rx, ry, BeanGui.railW(), BeanGui.railH(), radius, theme.panel);
 
         Category[] categories = Category.values();
 
@@ -233,32 +240,30 @@ public final class BeanGuiRenderer {
         float indicator = BeanGui.railIndicator();
 
         double pillRadius = Math.max(2, radius - 1);
-        Draw.roundRect(gfx, rx + 6, indicator, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H,
+        Draw.roundRect(gfx, rx + 6, indicator, BeanGui.railW() - 12, BeanGui.railRowH(),
                 pillRadius, theme.accent);
 
         for (int i = 0; i < categories.length; i++) {
             Category category = categories[i];
             int y = BeanGui.railRowY(i);
-            if (y + BeanGui.RAIL_ROW_H > ry + BeanGui.railH()) {
-                break;
-            }
 
             boolean hovered = interactive
-                    && BeanGui.hit(mouseX, mouseY, rx + 6, y, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H);
+                    && BeanGui.hit(mouseX, mouseY, rx + 6, y, BeanGui.railW() - 12, BeanGui.railRowH());
             // How much of the pill is under this row right now, so the label
             // cross-fades to the on-accent colour as the pill arrives.
-            float covered = 1f - Math.min(1f, Math.abs(indicator - y) / (float) BeanGui.RAIL_ROW_H);
+            float covered = 1f - Math.min(1f, Math.abs(indicator - y) / (float) BeanGui.railRowH());
 
             if (hovered && covered < 0.5f) {
-                Draw.roundRect(gfx, rx + 6, y, BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H, pillRadius,
+                Draw.roundRect(gfx, rx + 6, y, BeanGui.railW() - 12, BeanGui.railRowH(), pillRadius,
                         Colours.withAlpha(theme.text, 14));
             }
 
             int resting = hovered ? theme.text : theme.textDim;
             int content = Colours.mix(resting, Colours.contrastOn(theme.accent), covered);
-            Icons.category(gfx, category, rx + 16, y + (BeanGui.RAIL_ROW_H - 11) / 2, 11, content);
-            Draw.text(gfx, font, category.label(), rx + 34,
-                    y + (BeanGui.RAIL_ROW_H - font.lineHeight) / 2 + 1, content);
+            int icon = Math.min(11, BeanGui.railRowH() - 8);
+            Icons.category(gfx, category, rx + 15, y + (BeanGui.railRowH() - icon) / 2, icon, content);
+            Draw.text(gfx, font, Draw.clip(font, category.label(), BeanGui.railW() - 48), rx + 32,
+                    y + (BeanGui.railRowH() - font.lineHeight) / 2 + 1, content);
         }
     }
 
@@ -267,7 +272,7 @@ public final class BeanGuiRenderer {
         Category[] categories = Category.values();
         for (int i = 0; i < categories.length; i++) {
             if (BeanGui.hit(mx, my, BeanGui.railX() + 6, BeanGui.railRowY(i),
-                    BeanGui.RAIL_W - 12, BeanGui.RAIL_ROW_H)) {
+                    BeanGui.railW() - 12, BeanGui.railRowH())) {
                 return categories[i];
             }
         }
@@ -406,9 +411,16 @@ public final class BeanGuiRenderer {
 
         String name = Draw.clip(font, module.name(), nameMax - tagW);
         Draw.text(gfx, font, name, nameX, textY, nameColour);
+        int after = nameX + font.width(name);
         if (searching && font.width(name) + tagW <= nameMax) {
-            Draw.text(gfx, font, tag, nameX + font.width(name) + 11, textY,
-                    Colours.fade(theme.textDim, 0.6f));
+            Draw.text(gfx, font, tag, after + 11, textY, Colours.fade(theme.textDim, 0.6f));
+            after += 11 + font.width(tag);
+        }
+        // A dot marks the modules that are actually implemented. Everything
+        // without one flips a boolean and writes a log line.
+        if (module.isWorking() && after + 8 < gearX()) {
+            Draw.circle(gfx, after + 5, textY + font.lineHeight / 2.0 - 1, 2,
+                    Colours.fade(theme.accent, Math.max(0.55f, Math.max(on, hover))));
         }
 
         if (module.hasSettings()) {

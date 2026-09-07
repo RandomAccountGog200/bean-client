@@ -154,6 +154,9 @@ public final class Setting {
         BeanConfig.saveSoon();
         if (owner != null) {
             owner.onSettingChanged(this);
+            if (owner.id().equals("fps_limiter")) {
+                DefaultModules.onFrameLimitChanged();
+            }
         }
     }
 

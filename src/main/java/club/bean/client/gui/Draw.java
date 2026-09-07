@@ -25,9 +25,11 @@ public final class Draw {
     public static final double BEAN_ANGLE = -24.0;
 
     /** Sub-scanlines per pixel row. Four is enough to hide the stepping. */
-    private static final int SUB = 4;
+    private static final int SUB_MAX = 4;
+    /** Below this height, two samples look the same and cost half the rectangles. */
+    private static final int SMALL_SHAPE = 16;
 
-    private static final double[][] SAMPLES = new double[SUB][];
+    private static final double[][] SAMPLES = new double[SUB_MAX][];
     private static final double[] COVERAGE = new double[1024];
 
     private static float opacity = 1f;
@@ -60,6 +62,9 @@ public final class Draw {
 
         int first = (int) Math.floor(yTop);
         int last = (int) Math.ceil(yBottom);
+        // Icons and toggle knobs are small enough that extra samples only
+        // produce extra part-covered pixels, each of which is another rectangle.
+        int sub = (last - first) <= SMALL_SHAPE ? 2 : SUB_MAX;
 
         // A run of identical full-coverage rows is emitted as one rectangle.
         boolean pending = false;
@@ -73,8 +78,8 @@ public final class Draw {
             int hi = Integer.MIN_VALUE;
             boolean uniform = true;
 
-            for (int s = 0; s < SUB; s++) {
-                double[] iv = span.at(y + (s + 0.5) / SUB);
+            for (int s = 0; s < sub; s++) {
+                double[] iv = span.at(y + (s + 0.5) / sub);
                 SAMPLES[s] = iv;
                 if (iv == null || iv.length == 0) {
                     uniform = false;
@@ -95,11 +100,11 @@ public final class Draw {
 
             // A row whose four samples agree on integer edges is a plain
             // rectangle - the flat middle of a rounded panel, mostly.
-            if (uniform && count == SUB) {
+            if (uniform && count == sub) {
                 double l = SAMPLES[0][0];
                 double r = SAMPLES[0][1];
                 boolean identical = l == Math.floor(l) && r == Math.floor(r);
-                for (int s = 1; s < SUB && identical; s++) {
+                for (int s = 1; s < sub && identical; s++) {
                     identical = SAMPLES[s][0] == l && SAMPLES[s][1] == r;
                 }
                 if (identical) {
@@ -118,7 +123,7 @@ public final class Draw {
             }
 
             pending = flush(gfx, pending, pendX0, pendX1, pendY0, y, rgb, alpha);
-            emitRow(gfx, y, lo, hi, rgb, alpha);
+            emitRow(gfx, y, lo, hi, rgb, alpha, sub);
         }
 
         flush(gfx, pending, pendX0, pendX1, pendY0, last, rgb, alpha);
@@ -132,33 +137,111 @@ public final class Draw {
         return false;
     }
 
-    /** Accumulates per-pixel coverage for one row, then emits it as merged runs. */
-    private static void emitRow(GuiGraphicsExtractor gfx, int y, int lo, int hi, int rgb, int alpha) {
-        int width = hi - lo;
+    /**
+     * Emits one row.
+     *
+     * <p>Only the pixels an edge passes through need per-pixel coverage; the
+     * interior is solid by definition. When every sub-scanline gives a single
+     * span — which is everything except a ring — this walks the two narrow edge
+     * zones and fills the middle in one go. Scanning the full width instead, as
+     * an earlier version did, cost hundreds of wasted iterations on every
+     * rounded corner and was most of why opening the menu stuttered.
+     */
+    private static void emitRow(GuiGraphicsExtractor gfx, int y, int lo, int hi, int rgb, int alpha,
+                                int sub) {
+        if (hi - lo <= 0) {
+            return;
+        }
+
+        // Every sub-scanline has to agree on how many spans there are before we
+        // can pair them up. They disagree only where a hole opens or closes -
+        // the caps of a ring - which is a couple of rows per shape.
+        int spans = SAMPLES[0] == null ? 0 : SAMPLES[0].length / 2;
+        boolean pairable = spans > 0;
+        for (int s = 0; s < sub && pairable; s++) {
+            pairable = SAMPLES[s] != null && SAMPLES[s].length / 2 == spans;
+        }
+
+        if (pairable) {
+            for (int k = 0; k < spans; k++) {
+                double leftMin = Double.MAX_VALUE;
+                double leftMax = -Double.MAX_VALUE;
+                double rightMin = Double.MAX_VALUE;
+                double rightMax = -Double.MAX_VALUE;
+                boolean usable = true;
+
+                for (int s = 0; s < sub; s++) {
+                    double l = SAMPLES[s][k * 2];
+                    double r = SAMPLES[s][k * 2 + 1];
+                    if (r <= l) {
+                        usable = false;
+                        break;
+                    }
+                    leftMin = Math.min(leftMin, l);
+                    leftMax = Math.max(leftMax, l);
+                    rightMin = Math.min(rightMin, r);
+                    rightMax = Math.max(rightMax, r);
+                }
+                if (!usable) {
+                    scanZone(gfx, y, lo, hi, rgb, alpha, k, sub);
+                    continue;
+                }
+
+                int leftFrom = (int) Math.floor(leftMin);
+                int leftTo = (int) Math.ceil(leftMax);
+                int rightFrom = (int) Math.floor(rightMin);
+                int rightTo = (int) Math.ceil(rightMax);
+
+                if (leftTo <= rightFrom) {
+                    scanZone(gfx, y, leftFrom, leftTo, rgb, alpha, k, sub);
+                    if (rightFrom > leftTo) {
+                        gfx.fill(leftTo, y, rightFrom, y + 1, (alpha << 24) | rgb);
+                    }
+                    scanZone(gfx, y, rightFrom, rightTo, rgb, alpha, k, sub);
+                } else {
+                    // Thinner than the sampling blur, so the zones overlap.
+                    scanZone(gfx, y, leftFrom, rightTo, rgb, alpha, k, sub);
+                }
+            }
+            return;
+        }
+        scanZone(gfx, y, lo, hi, rgb, alpha, -1, sub);
+    }
+
+    /**
+     * Per-pixel coverage over a column range, emitted as merged runs.
+     *
+     * @param only index of the single span to accumulate, or -1 for all of them
+     */
+    private static void scanZone(GuiGraphicsExtractor gfx, int y, int from, int to, int rgb, int alpha,
+                                 int only, int sub) {
+        int width = to - from;
         if (width <= 0 || width > COVERAGE.length) {
             return;
         }
         java.util.Arrays.fill(COVERAGE, 0, width, 0.0);
 
-        double share = 1.0 / SUB;
-        for (int s = 0; s < SUB; s++) {
+        double share = 1.0 / sub;
+        for (int s = 0; s < sub; s++) {
             double[] iv = SAMPLES[s];
             if (iv == null) {
                 continue;
             }
-            for (int k = 0; k + 1 < iv.length; k += 2) {
+            int first = only < 0 ? 0 : only * 2;
+            int stop = only < 0 ? iv.length : Math.min(iv.length, only * 2 + 2);
+            for (int k = first; k + 1 < stop; k += 2) {
                 double l = iv[k];
                 double r = iv[k + 1];
                 if (r <= l) {
                     continue;
                 }
-                int from = Math.max(lo, (int) Math.floor(l));
-                int to = Math.min(hi, (int) Math.ceil(r));
-                for (int x = from; x < to; x++) {
+                int start = Math.max(from, (int) Math.floor(l));
+                int end = Math.min(to, (int) Math.ceil(r));
+                for (int x = start; x < end; x++) {
                     // How much of pixel [x, x+1) this sub-scanline covers.
                     double overlap = Math.min(r, x + 1) - Math.max(l, x);
                     if (overlap > 0) {
-                        COVERAGE[x - lo] += overlap * share;
+                        COVERAGE[x - from] += overlap * share;
                     }
                 }
             }
@@ -170,11 +253,61 @@ public final class Draw {
             int a = i == width ? -1 : (int) Math.round(Math.min(1, COVERAGE[i]) * alpha);
             if (a != runAlpha) {
                 if (runAlpha > 0 && runStart >= 0) {
-                    gfx.fill(lo + runStart, y, lo + i, y + 1, (runAlpha << 24) | rgb);
+                    gfx.fill(from + runStart, y, from + i, y + 1, (runAlpha << 24) | rgb);
                 }
                 runStart = i;
                 runAlpha = a;
             }
+        }
+    }
+
+    /**
+     * Aliased sibling of {@link #shape} for decoration that is too faint for
+     * the difference to be visible — the wallpaper motif, mainly. Spans are
+     * rounded to whole pixels and identical rows merged, so a shape costs about
+     * one rectangle per row instead of three.
+     */
+    public static void shapeCheap(GuiGraphicsExtractor gfx, double yTop, double yBottom, Span span,
+                                  int exactColour) {
+        if ((exactColour >>> 24) == 0) {
+            return;
+        }
+        int first = (int) Math.floor(yTop);
+        int last = (int) Math.ceil(yBottom);
+
+        boolean pending = false;
+        int pendX0 = 0;
+        int pendX1 = 0;
+        int pendY0 = 0;
+
+        for (int y = first; y < last; y++) {
+            double[] iv = span.at(y + 0.5);
+            int x0 = 0;
+            int x1 = 0;
+            if (iv != null && iv.length >= 2) {
+                x0 = (int) Math.round(iv[0]);
+                x1 = (int) Math.round(iv[iv.length - 1]);
+            }
+            if (x1 <= x0) {
+                if (pending) {
+                    gfx.fill(pendX0, pendY0, pendX1, y, exactColour);
+                    pending = false;
+                }
+                continue;
+            }
+            if (pending && x0 == pendX0 && x1 == pendX1) {
+                continue;
+            }
+            if (pending) {
+                gfx.fill(pendX0, pendY0, pendX1, y, exactColour);
+            }
+            pending = true;
+            pendX0 = x0;
+            pendX1 = x1;
+            pendY0 = y;
+        }
+        if (pending) {
+            gfx.fill(pendX0, pendY0, pendX1, last, exactColour);
         }
     }
 
@@ -219,21 +352,52 @@ public final class Draw {
         roundRect(gfx, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), fill);
     }
 
-    /** Hairline rounded border with nothing inside it. */
+    /**
+     * Hairline rounded border with nothing inside it.
+     *
+     * <p>Only the corners are curved, so only the corners go through the
+     * anti-aliased filler. Running the whole outline through it would cost two
+     * rectangles for every row of the window - about 1400 for the main frame
+     * alone - to draw four straight lines.
+     */
     public static void roundBorder(GuiGraphicsExtractor gfx, double x, double y, double w, double h,
                                    double radius, double thickness, int colour) {
-        shape(gfx, y, y + h, yy -> {
-            double[] outer = Shapes.roundRect(x, y, w, h, radius).at(yy);
-            double[] inner = Shapes.roundRect(x + thickness, y + thickness,
-                    w - thickness * 2, h - thickness * 2, Math.max(0, radius - thickness)).at(yy);
-            if (outer.length == 0) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        double r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+        int c = col(colour);
+        int t = (int) Math.max(1, Math.round(thickness));
+
+        int left = (int) Math.round(x);
+        int top = (int) Math.round(y);
+        int right = (int) Math.round(x + w);
+        int bottom = (int) Math.round(y + h);
+        int inset = (int) Math.ceil(r);
+
+        gfx.fill(left + inset, top, right - inset, top + t, c);
+        gfx.fill(left + inset, bottom - t, right - inset, bottom, c);
+        gfx.fill(left, top + inset, left + t, bottom - inset, c);
+        gfx.fill(right - t, top + inset, right, bottom - inset, c);
+
+        if (r < 0.5) {
+            return;
+        }
+        Span outer = Shapes.roundRect(x, y, w, h, r);
+        Span inner = Shapes.roundRect(x + t, y + t, w - t * 2, h - t * 2, Math.max(0, r - t));
+        Span band = yy -> {
+            double[] o = outer.at(yy);
+            if (o.length == 0) {
                 return Shapes.EMPTY;
             }
-            if (inner.length == 0) {
-                return outer;
+            double[] i = inner.at(yy);
+            if (i.length == 0) {
+                return o;
             }
-            return new double[] { outer[0], inner[0], inner[1], outer[1] };
-        }, colour);
+            return new double[] { o[0], i[0], i[1], o[1] };
+        };
+        shape(gfx, y, y + inset, band, colour);
+        shape(gfx, y + h - inset, y + h, band, colour);
     }
 
     public static void circle(GuiGraphicsExtractor gfx, double cx, double cy, double r, int colour) {
@@ -303,9 +467,9 @@ public final class Draw {
         double[] axes = Shapes.beanAxes(w, h, BEAN_ANGLE);
         double reach = axes[0] * 0.78;
         double amplitude = axes[1] * 0.24;
-        double radius = Math.max(0.55, axes[1] * 0.21);
+        double radius = Math.max(0.6, axes[1] * 0.24);
 
-        int steps = Math.max(6, (int) (reach * 1.8));
+        int steps = Math.max(5, (int) (reach * 0.85));
         for (int i = 0; i <= steps; i++) {
             double u = -reach + (reach * 2) * i / steps;
             double v = Math.sin(u / reach * Math.PI) * amplitude;
@@ -354,7 +518,14 @@ public final class Draw {
      * clipped to the panel, so it reads as continuous wallpaper rather than a
      * row of icons.
      */
-    public static void backgroundPattern(GuiGraphicsExtractor gfx, int x, int y, int w, int h, Theme theme) {
+    /**
+     * @param covered rectangles ({@code {x, y, w, h}}) that opaque panels will
+     *                paint over this pattern. Motifs falling entirely inside
+     *                one are skipped - without this, most of the wallpaper is
+     *                drawn and then immediately hidden by the rail and panel.
+     */
+    public static void backgroundPattern(GuiGraphicsExtractor gfx, int x, int y, int w, int h,
+                                         Theme theme, int[]... covered) {
         if (theme.pattern == Theme.Pattern.NONE || theme.patternOpacity <= 0.001f) {
             return;
         }
@@ -368,19 +539,30 @@ public final class Draw {
         opacity = 1f;
         switch (theme.pattern) {
             case BEAN -> {
-                int spacingX = 74;
-                int spacingY = 58;
+                // Wallpaper is redrawn every frame, so it uses the aliased path
+                // and a sparse grid. At this opacity the jagged edges are not
+                // visible, and it is the difference between ~5800 rectangles a
+                // frame and a couple of hundred.
+                int spacingX = 104;
+                int spacingY = 84;
+                int beanW = 32;
+                int beanH = 22;
                 for (int row = 0; row * spacingY < h + spacingY; row++) {
                     int offset = (row % 2 == 0) ? 0 : spacingX / 2;
-                    for (int cx = x + 20 + offset; cx < x + w + spacingX; cx += spacingX) {
-                        beanSilhouette(gfx, cx, y + 22 + row * spacingY, 26, 18, tint);
+                    for (int cx = x + 24 + offset; cx < x + w + spacingX; cx += spacingX) {
+                        int cy = y + 26 + row * spacingY;
+                        if (hidden(cx - beanW / 2, cy - beanH / 2, beanW, beanH, covered)) {
+                            continue;
+                        }
+                        shapeCheap(gfx, cy - beanH / 2.0 - 1, cy + beanH / 2.0 + 1,
+                                Shapes.bean(cx, cy, beanW, beanH, BEAN_ANGLE), tint);
                     }
                 }
             }
             case DOTS -> {
-                for (int py = y + 8; py < y + h; py += 16) {
-                    for (int px = x + 8; px < x + w; px += 16) {
-                        circle(gfx, px, py, 1.4, tint);
+                for (int py = y + 8; py < y + h; py += 18) {
+                    for (int px = x + 8; px < x + w; px += 18) {
+                        gfx.fill(px, py, px + 2, py + 2, tint);
                     }
                 }
             }
@@ -397,6 +579,16 @@ public final class Draw {
         }
         opacity = previous;
         gfx.disableScissor();
+    }
+
+    /** True when the box lies entirely inside one of the covering rectangles. */
+    private static boolean hidden(int bx, int by, int bw, int bh, int[][] covered) {
+        for (int[] r : covered) {
+            if (bx >= r[0] && by >= r[1] && bx + bw <= r[0] + r[2] && by + bh <= r[1] + r[3]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- text -------------------------------------------------------------

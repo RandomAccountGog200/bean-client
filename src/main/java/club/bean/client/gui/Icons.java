@@ -32,6 +32,7 @@ public final class Icons {
             case VISUAL -> visual(gfx, x, y, size, colour);
             case PLAYER -> player(gfx, x, y, size, colour);
             case WORLD -> world(gfx, x, y, size, colour);
+            case SMP -> smp(gfx, x, y, size, colour);
             case MISC -> misc(gfx, x, y, size, colour);
             case THEMES -> themes(gfx, x, y, size, colour);
         }
@@ -115,6 +116,20 @@ public final class Icons {
         Draw.shape(gfx, cy - r, cy + r,
                 Shapes.ellipseRing(cx, cy, r * 0.46, r, r * 0.46 - thick * 0.85, r - thick * 0.85), colour);
         Draw.roundRect(gfx, cx - r, cy - thick / 2, r * 2, thick, thick / 2, colour);
+    }
+
+    /** Two figures side by side - other people on the server. */
+    public static void smp(GuiGraphicsExtractor gfx, int x, int y, int size, int colour) {
+        double headR = size * 0.15;
+        double bodyW = size * 0.42;
+        for (int i = 0; i < 2; i++) {
+            double cx = x + size * (0.28 + i * 0.44);
+            double top = y + size * (i == 0 ? 0.30 : 0.38);
+            Draw.circle(gfx, cx, top, headR, colour);
+            Draw.shape(gfx, top + headR + size * 0.06, y + size,
+                    Shapes.roundRect(cx - bodyW / 2, top + headR + size * 0.06, bodyW,
+                            size * 0.7, bodyW * 0.42), colour);
+        }
     }
 
     /** Three dots. */

@@ -39,7 +39,7 @@ public class BeanGuiScreen extends Screen {
 
     @Override
     protected void init() {
-        BeanGui.clampToScreen(this.width, this.height);
+        BeanGui.fitTo(this.width, this.height);
         BeanGui.clampScroll();
     }
 
@@ -195,12 +195,12 @@ public class BeanGuiScreen extends Screen {
 
         if (draggingWindow) {
             BeanGui.moveTo((int) Math.round(mx - grabX), (int) Math.round(my - grabY));
-            BeanGui.clampToScreen(this.width, this.height);
+            BeanGui.clampPosition();
             return true;
         }
         if (resizingWindow) {
             BeanGui.resizeTo((int) Math.round(mx - grabX), (int) Math.round(my - grabY));
-            BeanGui.clampToScreen(this.width, this.height);
+            BeanGui.clampPosition();
             return true;
         }
         if (activeSlider != null) {
